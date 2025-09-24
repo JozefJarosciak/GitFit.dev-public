@@ -58,11 +58,11 @@ class DownloadManager {
             linux: document.getElementById('downloadLinux')
         };
 
-        // GitHub release URLs - update these when releases are available
+        // GitHub release URLs - dynamically updated from API
         this.downloadUrls = {
-            windows: 'https://github.com/JozefJarosciak/GitFit.dev/releases/latest/download/GitFitDev-Windows-Setup.exe',
-            mac: 'https://github.com/JozefJarosciak/GitFit.dev/releases/latest/download/GitFitDev-macOS-Installer.dmg',
-            linux: 'https://github.com/JozefJarosciak/GitFit.dev/releases/latest/download/GitFitDev-Linux.AppImage'
+            windows: 'https://github.com/JozefJarosciak/GitFit.dev-public/releases/latest',
+            mac: 'https://github.com/JozefJarosciak/GitFit.dev-public/releases/latest',
+            linux: 'https://github.com/JozefJarosciak/GitFit.dev-public/releases/latest'
         };
 
         this.bindEvents();
@@ -95,26 +95,177 @@ class DownloadManager {
     async checkAvailability() {
         // Check if releases are available
         try {
-            const response = await fetch('https://api.github.com/repos/JozefJarosciak/GitFit.dev/releases/latest');
+            const response = await fetch('https://api.github.com/repos/JozefJarosciak/GitFit.dev-public/releases/latest');
             if (response.ok) {
                 const release = await response.json();
-                const assets = release.assets.map(asset => asset.name.toLowerCase());
+                this.latestRelease = release;
+
+                // Find available Windows versions
+                const windowsAssets = release.assets.filter(asset => {
+                    const name = asset.name.toLowerCase();
+                    return name.includes('windows') || name.includes('win') || name.includes('.exe');
+                });
+
+                // Categorize Windows downloads
+                this.windowsDownloads = {
+                    installer: windowsAssets.find(asset =>
+                        asset.name.toLowerCase().includes('setup') ||
+                        asset.name.toLowerCase().includes('installer')
+                    ),
+                    portable: windowsAssets.find(asset =>
+                        asset.name.toLowerCase().includes('portable') ||
+                        (asset.name.toLowerCase().includes('.exe') &&
+                         !asset.name.toLowerCase().includes('setup') &&
+                         !asset.name.toLowerCase().includes('installer'))
+                    ),
+                    zip: windowsAssets.find(asset =>
+                        asset.name.toLowerCase().includes('.zip')
+                    )
+                };
 
                 // Enable downloads based on available assets
-                if (assets.some(name => name.includes('windows') && name.includes('setup'))) {
-                    this.enableDownload('windows');
+                if (windowsAssets.length > 0) {
+                    this.enableWindowsDownload();
                 }
-                if (assets.some(name => name.includes('macos') || name.includes('mac'))) {
+
+                const macAssets = release.assets.filter(asset => {
+                    const name = asset.name.toLowerCase();
+                    return name.includes('macos') || name.includes('mac') || name.includes('.dmg');
+                });
+                if (macAssets.length > 0) {
+                    this.downloadUrls.mac = macAssets[0].browser_download_url;
                     this.enableDownload('mac');
                 }
-                if (assets.some(name => name.includes('linux') || name.includes('appimage'))) {
+
+                const linuxAssets = release.assets.filter(asset => {
+                    const name = asset.name.toLowerCase();
+                    return name.includes('linux') || name.includes('appimage');
+                });
+                if (linuxAssets.length > 0) {
+                    this.downloadUrls.linux = linuxAssets[0].browser_download_url;
                     this.enableDownload('linux');
                 }
             }
         } catch (error) {
             console.log('Could not check release availability:', error);
-            // Windows is always available since it's explicitly mentioned
+            // Fallback to release page
             this.enableDownload('windows');
+            this.enableDownload('mac');
+            this.enableDownload('linux');
+        }
+    }
+
+    enableWindowsDownload() {
+        const button = this.downloadButtons.windows;
+        button.classList.remove('disabled');
+
+        // Update button to show dropdown options
+        const icon = button.querySelector('.btn-icon');
+        icon.textContent = '⬇️';
+
+        // Replace button content with dropdown
+        const availableOptions = [];
+        if (this.windowsDownloads.installer) availableOptions.push('installer');
+        if (this.windowsDownloads.portable) availableOptions.push('portable');
+        if (this.windowsDownloads.zip) availableOptions.push('zip');
+
+        if (availableOptions.length > 1) {
+            // Create dropdown for multiple options
+            button.innerHTML = `<span class="btn-icon">⬇️</span>Download for Windows ▼`;
+            button.style.position = 'relative';
+            this.createWindowsDropdown(button, availableOptions);
+        } else if (availableOptions.length === 1) {
+            // Single option available
+            const option = availableOptions[0];
+            button.innerHTML = `<span class="btn-icon">⬇️</span>Download for Windows (${option.charAt(0).toUpperCase() + option.slice(1)})`;
+            button.onclick = (e) => {
+                e.preventDefault();
+                this.downloadWindowsVersion(option);
+            };
+        }
+    }
+
+    createWindowsDropdown(button, options) {
+        // Create dropdown menu
+        const dropdown = document.createElement('div');
+        dropdown.className = 'windows-download-dropdown';
+        dropdown.style.cssText = `
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            z-index: 1000;
+            display: none;
+            margin-top: 5px;
+        `;
+
+        options.forEach(option => {
+            const item = document.createElement('a');
+            item.href = '#';
+            item.className = 'dropdown-item';
+            item.style.cssText = `
+                display: block;
+                padding: 12px 16px;
+                color: var(--text-primary);
+                text-decoration: none;
+                transition: background 0.2s ease;
+                border-radius: 6px;
+                margin: 4px;
+            `;
+
+            const optionName = option.charAt(0).toUpperCase() + option.slice(1);
+            const description = {
+                installer: 'Setup file with automatic installation',
+                portable: 'Portable executable (no installation)',
+                zip: 'ZIP archive for manual setup'
+            };
+
+            item.innerHTML = `
+                <div style="font-weight: 600;">${optionName}</div>
+                <div style="font-size: 0.85em; color: var(--text-secondary);">${description[option]}</div>
+            `;
+
+            item.onmouseenter = () => item.style.background = 'var(--bg-secondary)';
+            item.onmouseleave = () => item.style.background = '';
+
+            item.onclick = (e) => {
+                e.preventDefault();
+                this.downloadWindowsVersion(option);
+                dropdown.style.display = 'none';
+            };
+
+            dropdown.appendChild(item);
+        });
+
+        button.parentElement.style.position = 'relative';
+        button.parentElement.appendChild(dropdown);
+
+        // Toggle dropdown on button click
+        button.onclick = (e) => {
+            e.preventDefault();
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        };
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!button.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+    }
+
+    downloadWindowsVersion(version) {
+        const asset = this.windowsDownloads[version];
+        if (asset) {
+            this.downloadUrls.windows = asset.browser_download_url;
+            this.downloadFile('windows');
+
+            // Track specific version
+            this.trackDownload(`windows-${version}`);
         }
     }
 

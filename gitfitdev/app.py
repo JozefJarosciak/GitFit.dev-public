@@ -92,6 +92,7 @@ from .trigger_utils import calculate_next_trigger_time
 from .body_map import get_body_map, get_daily_report
 from .body_map_window import BodyMapWindow
 from .translations import get_translation, get_available_languages, get_language_display_name
+from .version_checker import VersionChecker
 from .disclaimer_text import get_disclaimer_text
 from .version import __version__, __github_repo__, __github_api_releases__
 
@@ -2503,6 +2504,11 @@ class MoveReminderApp:
         self._paused_icon = None
         self._disclaimer_accepted = False  # Track disclaimer acceptance for this session
 
+        # Initialize version checker
+        self._version_checker = VersionChecker(self.settings)
+        self._version_checker.set_update_callback(self._handle_update_available)
+        self._update_info = None  # Store update information
+
         # Register cleanup on exit
         atexit.register(self._cleanup_on_exit)
 
@@ -2625,6 +2631,9 @@ class MoveReminderApp:
         # Start scheduler
         self._scheduler.start()
 
+        # Start automatic version checking
+        self._version_checker.check_for_updates_async()
+
         # Start tray in a thread; keep Tk mainloop on main thread
         t = threading.Thread(target=self._tray.run, daemon=True)
         t.start()
@@ -2692,12 +2701,21 @@ class MoveReminderApp:
                 pystray.MenuItem(get_translation("tray_daily_progress", self.settings.language), lambda: self._call_in_tk(self.open_body_map)),
                 pystray.MenuItem(get_translation("tray_open_settings", self.settings.language), lambda: self._call_in_tk(self.open_settings)),
                 pystray.Menu.SEPARATOR,
-                # Help submenu
-                pystray.MenuItem(get_translation("tray_help", self.settings.language), pystray.Menu(
-                    pystray.MenuItem(get_translation("tray_about", self.settings.language), lambda: self._call_in_tk(self.show_about_dialog)),
-                    pystray.MenuItem(get_translation("tray_github", self.settings.language), lambda: self._call_in_tk(self.open_github)),
-                    pystray.MenuItem(get_translation("tray_check_updates", self.settings.language), lambda: self._call_in_tk(self.check_for_updates)),
-                )),
+                # Help submenu with update notification
+                pystray.MenuItem(
+                    lambda text: f"🔄 {get_translation('tray_help', self.settings.language)}" if self._update_info else get_translation("tray_help", self.settings.language),
+                    pystray.Menu(
+                        # Show update available option if update exists
+                        pystray.MenuItem(
+                            lambda text: f"📥 Download v{self._update_info.get('version', '')} (Update Available!)" if self._update_info else get_translation("tray_check_updates", self.settings.language),
+                            lambda: self._call_in_tk(self._download_update) if self._update_info else self._call_in_tk(self.check_for_updates)
+                        ),
+                        pystray.Menu.SEPARATOR if self._update_info else None,
+                        pystray.MenuItem(get_translation("tray_about", self.settings.language), lambda: self._call_in_tk(self.show_about_dialog)),
+                        pystray.MenuItem(get_translation("tray_github", self.settings.language), lambda: self._call_in_tk(self.open_github)),
+                        pystray.MenuItem(get_translation("tray_check_updates", self.settings.language), lambda: self._call_in_tk(self.check_for_updates)) if not self._update_info else None,
+                    )
+                ),
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem(get_translation("tray_quit", self.settings.language), self._quit),
             )
@@ -2955,7 +2973,7 @@ class MoveReminderApp:
         """Check for updates and show result in a simple dialog"""
         check_window = tk.Toplevel(self.root)
         check_window.title(get_translation("check_updates_title", self.settings.language))
-        check_window.geometry("350x150")
+        check_window.geometry("400x200")
         check_window.resizable(False, False)
 
         theme = get_theme(self.settings.theme)
@@ -3185,6 +3203,48 @@ class MoveReminderApp:
             logging.info("[App] Settings saved on exit")
         except Exception as e:
             logging.error(f"[App] Failed to save settings on exit: {e}")
+
+    def _handle_update_available(self, release_info):
+        """Handle when a new version is available"""
+        try:
+            version = release_info.get('version', 'Unknown')
+            url = release_info.get('url', '')
+
+            # Show toast notification about update
+            if self._toast:
+                message = f"GitFit.dev v{version} is available! Check the tray menu to download."
+                self._toast.show_toast(
+                    title="Update Available",
+                    msg=message,
+                    duration=8,
+                    threaded=True,
+                    callback_on_click=lambda: self._open_update_url(url)
+                )
+
+            # Store update info for tray menu
+            self._update_info = release_info
+
+            # Update tray menu to show update notification
+            self._call_in_tk(self._update_tray_menu)
+
+        except Exception as e:
+            logging.error(f"[App] Error handling update notification: {e}")
+
+    def _open_update_url(self, url):
+        """Open update URL in default browser"""
+        try:
+            import webbrowser
+            webbrowser.open(url)
+        except Exception as e:
+            logging.error(f"[App] Error opening update URL: {e}")
+
+    def _download_update(self):
+        """Handle download update action"""
+        if self._update_info:
+            url = self._update_info.get('download_url', self._update_info.get('url', ''))
+            self._open_update_url(url)
+        else:
+            self.check_for_updates()
 
     def _start_autosave(self):
         """Start periodic settings autosave."""
