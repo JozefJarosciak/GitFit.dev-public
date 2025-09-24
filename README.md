@@ -1,7 +1,7 @@
 # GitFit.dev - Break Reminders That Actually Work for Developers
 
 <div align="center">
-  <img src="assets/logo/logo.png" alt="GitFit.dev Logo" width="128" height="128" />
+  <img src="assets/logo.svg" alt="GitFit.dev Logo" width="128" height="128" />
 
   [![License: AGPL v3.0](https://img.shields.io/badge/License-AGPL%20v3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
   [![Platform Support](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](#installation)
