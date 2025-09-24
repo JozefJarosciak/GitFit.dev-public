@@ -60,6 +60,48 @@ jobs:
         Compress-Archive -Path "dist\GitFitDev.exe" -DestinationPath "dist\GitFitDev-v$version-$build-Windows.zip"
         Write-Host "✓ ZIP package created successfully"
 
+    - name: Check if Inno Setup is available
+      id: inno-check
+      run: |
+        $innoPath = Get-Command "iscc.exe" -ErrorAction SilentlyContinue
+        if ($innoPath) {
+          Write-Host "✓ Inno Setup found at: $($innoPath.Source)"
+          echo "available=true" >> $env:GITHUB_OUTPUT
+        } else {
+          Write-Host "⚠ Inno Setup not found - installer will be skipped"
+          echo "available=false" >> $env:GITHUB_OUTPUT
+        }
+
+    - name: Install Inno Setup
+      if: steps.inno-check.outputs.available == 'false'
+      run: |
+        Write-Host "Installing Inno Setup..."
+        $url = "https://files.jrsoftware.org/is/6/innosetup-6.2.2.exe"
+        $output = "$env:TEMP\innosetup.exe"
+        Invoke-WebRequest -Uri $url -OutFile $output
+        Start-Process -FilePath $output -ArgumentList "/SILENT" -Wait
+        # Add to PATH for current session
+        $env:PATH += ";${env:ProgramFiles(x86)}\Inno Setup 6"
+        echo "${env:ProgramFiles(x86)}\Inno Setup 6" >> $env:GITHUB_PATH
+
+    - name: Create Inno Setup installer
+      run: |
+        Write-Host "Creating Inno Setup installer..."
+        $isccPath = Get-Command "iscc.exe" -ErrorAction SilentlyContinue
+        if (-not $isccPath) {
+          $isccPath = "${env:ProgramFiles(x86)}\Inno Setup 6\iscc.exe"
+        }
+        if (Test-Path $isccPath) {
+          & $isccPath "installer\gitfit_installer.iss"
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "✓ Installer created successfully"
+          } else {
+            Write-Host "⚠ Installer creation failed (exit code: $LASTEXITCODE)" -ForegroundColor Yellow
+          }
+        } else {
+          Write-Host "⚠ Inno Setup compiler not found - installer skipped" -ForegroundColor Yellow
+        }
+
     - name: Display build info
       run: |
         Write-Host "Build artifacts:"
@@ -82,6 +124,14 @@ jobs:
         path: dist\GitFitDev-*.zip
         retention-days: 30
 
+    - name: Upload installer
+      uses: actions/upload-artifact@v4
+      if: always()  # Upload even if installer creation failed
+      with:
+        name: GitFitDev-${{ github.sha }}-installer
+        path: dist\GitFitDev-*-Setup.exe
+        retention-days: 30
+
     - name: Create latest release (on main branch)
       if: github.ref == 'refs/heads/main'
       uses: actions/upload-artifact@v4
@@ -90,4 +140,5 @@ jobs:
         path: |
           dist\GitFitDev.exe
           dist\GitFitDev-*.zip
+          dist\GitFitDev-*-Setup.exe
         retention-days: 7
