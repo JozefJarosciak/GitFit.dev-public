@@ -46,8 +46,8 @@ UninstallDisplayName={#MyAppName}
 
 ; Additional settings
 AllowNoIcons=yes
-LicenseFile=..\LICENSE
-InfoBeforeFile=..\README.md
+; LicenseFile=..\LICENSE
+; InfoBeforeFile=..\README.md
 WizardStyle=modern
 
 [Languages]
@@ -66,7 +66,7 @@ Source: "..\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Additional files if needed
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+; Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 ; Start Menu icons
