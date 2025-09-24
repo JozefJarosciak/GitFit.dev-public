@@ -46,6 +46,10 @@ class Settings:
     disclaimer_accepted: bool = False  # User must accept liability disclaimer
     disclaimer_version: str = "1.0"  # Track disclaimer version for updates
     language: str = "en"  # UI language (en, sk, etc.)
+    # Version checking settings
+    last_version_check: float = 0  # Last version check timestamp
+    latest_known_version: str = ""  # Latest version found during check
+    auto_check_updates: bool = True  # Automatically check for updates
     # Note: These are now the production defaults (9-5, 1hr intervals, 30sec breaks)
 
     def parse_active_from(self) -> time:

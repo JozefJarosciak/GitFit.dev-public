@@ -32,8 +32,8 @@ class VersionChecker:
     def should_check_for_updates(self):
         """Check if it's time to check for updates"""
         if self.config_manager:
-            last_check = self.config_manager.get('last_version_check', 0)
-            auto_check = self.config_manager.get('auto_check_updates', True)
+            last_check = getattr(self.config_manager, 'last_version_check', 0)
+            auto_check = getattr(self.config_manager, 'auto_check_updates', True)
             return auto_check and (time.time() - last_check) > self.check_interval
         return (time.time() - self.last_check_time) > self.check_interval
 
@@ -76,8 +76,8 @@ class VersionChecker:
 
                     # Store last check time
                     if self.config_manager:
-                        self.config_manager.set('last_version_check', time.time())
-                        self.config_manager.set('latest_known_version', latest_version)
+                        self.config_manager.last_version_check = time.time()
+                        self.config_manager.latest_known_version = latest_version
 
                     self.last_check_time = time.time()
 
@@ -141,15 +141,15 @@ class VersionChecker:
         """Force an immediate version check"""
         self.last_check_time = 0
         if self.config_manager:
-            self.config_manager.set('last_version_check', 0)
+            self.config_manager.last_version_check = 0
         self.check_for_updates_async()
 
     def disable_auto_check(self):
         """Disable automatic update checking"""
         if self.config_manager:
-            self.config_manager.set('auto_check_updates', False)
+            self.config_manager.auto_check_updates = False
 
     def enable_auto_check(self):
         """Enable automatic update checking"""
         if self.config_manager:
-            self.config_manager.set('auto_check_updates', True)
+            self.config_manager.auto_check_updates = True
