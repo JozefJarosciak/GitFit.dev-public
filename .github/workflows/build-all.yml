@@ -33,7 +33,7 @@ jobs:
     - name: Check assets
       run: |
         echo "Available assets:"
-        ls -la assets/ || echo "No assets directory found"
+        if (Test-Path "assets") { Get-ChildItem assets\ } else { echo "No assets directory found" }
 
     - name: Build with PyInstaller
       run: |
@@ -86,7 +86,7 @@ jobs:
     - name: Check assets
       run: |
         echo "Available assets:"
-        ls -la assets/ || echo "No assets directory found"
+        if (Test-Path "assets") { Get-ChildItem assets\ } else { echo "No assets directory found" }
 
     - name: Clean ALL caches
       run: |
