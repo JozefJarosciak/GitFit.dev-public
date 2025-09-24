@@ -46,11 +46,9 @@ UninstallDisplayName={#MyAppName}
 
 ; Additional settings
 AllowNoIcons=yes
-LicenseFile=..\LICENSE.txt
+LicenseFile=..\LICENSE
 InfoBeforeFile=..\README.md
 WizardStyle=modern
-WizardImageFile=installer_side.bmp
-WizardSmallImageFile=installer_small.bmp
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -68,7 +66,7 @@ Source: "..\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Additional files if needed
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion; AfterInstall: CreateLicenseIfMissing
+Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 ; Start Menu icons
@@ -96,35 +94,6 @@ Filename: "{app}\{#MyAppExeName}"; Parameters: "--show-settings"; Description: "
 Filename: "{cmd}"; Parameters: "/c taskkill /f /im GitFitDev.exe"; Flags: runhidden
 
 [Code]
-// Create LICENSE.txt if it doesn't exist
-procedure CreateLicenseIfMissing();
-var
-  LicensePath: String;
-  LicenseContent: String;
-begin
-  LicensePath := ExpandConstant('{app}\LICENSE.txt');
-  if not FileExists(LicensePath) then
-  begin
-    LicenseContent := 'MIT License' + #13#10 + #13#10 +
-      'Copyright (c) 2024 GitFit' + #13#10 + #13#10 +
-      'Permission is hereby granted, free of charge, to any person obtaining a copy' + #13#10 +
-      'of this software and associated documentation files (the "Software"), to deal' + #13#10 +
-      'in the Software without restriction, including without limitation the rights' + #13#10 +
-      'to use, copy, modify, merge, publish, distribute, sublicense, and/or sell' + #13#10 +
-      'copies of the Software, and to permit persons to whom the Software is' + #13#10 +
-      'furnished to do so, subject to the following conditions:' + #13#10 + #13#10 +
-      'The above copyright notice and this permission notice shall be included in all' + #13#10 +
-      'copies or substantial portions of the Software.' + #13#10 + #13#10 +
-      'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR' + #13#10 +
-      'IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,' + #13#10 +
-      'FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE' + #13#10 +
-      'AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER' + #13#10 +
-      'LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,' + #13#10 +
-      'OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE' + #13#10 +
-      'SOFTWARE.';
-    SaveStringToFile(LicensePath, LicenseContent, False);
-  end;
-end;
 
 // Check if the application is running
 function IsAppRunning(): Boolean;
