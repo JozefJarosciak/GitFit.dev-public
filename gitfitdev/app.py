@@ -2272,7 +2272,11 @@ class SettingsWindow:
                 time_format_24h=self.time_format_var.get(),
                 disclaimer_accepted=self.settings.disclaimer_accepted,  # Preserve disclaimer status
                 disclaimer_version=self.settings.disclaimer_version,
-                language=language_code
+                language=language_code,
+                # Preserve version checking settings
+                last_version_check=getattr(self.settings, 'last_version_check', 0),
+                latest_known_version=getattr(self.settings, 'latest_known_version', ""),
+                auto_check_updates=getattr(self.settings, 'auto_check_updates', True)
             )
             save_settings(s)
             if callable(self._set_autostart_state):
@@ -2284,7 +2288,10 @@ class SettingsWindow:
                 self.on_save(s)
             self._on_close()
         except Exception as e:
-            messagebox.showerror(get_translation("error_title", self.language), f"{get_translation('validation_invalid_settings', self.language)}\n\n{e}")
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"Settings save error: {error_details}")
+            messagebox.showerror(get_translation("error_title", self.language), f"{get_translation('validation_invalid_settings', self.language)}\n\n{str(e)}\n\nCheck console for details.")
 
     def _on_close(self):
         """Clean up and close the settings window."""
