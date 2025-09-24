@@ -155,26 +155,23 @@ jobs:
         cp -R "dist/GitFit.dev.app" "dist/dmg/"
 
         # Create a simple installer note
-        cat > "dist/dmg/Install_GitFit.command" << 'EOF'
-#!/bin/bash
-echo "To install GitFit.dev:"
-echo "1. Drag GitFit.dev.app to your Applications folder"
-echo "2. Launch it from Applications"
-echo "3. Look for the icon in your menu bar!"
-EOF
+        echo '#!/bin/bash' > "dist/dmg/Install_GitFit.command"
+        echo 'echo "To install GitFit.dev:"' >> "dist/dmg/Install_GitFit.command"
+        echo 'echo "1. Drag GitFit.dev.app to your Applications folder"' >> "dist/dmg/Install_GitFit.command"
+        echo 'echo "2. Launch it from Applications"' >> "dist/dmg/Install_GitFit.command"
+        echo 'echo "3. Look for the icon in your menu bar!"' >> "dist/dmg/Install_GitFit.command"
         chmod +x "dist/dmg/Install_GitFit.command"
 
-        cat > dist/dmg/README.txt << EOF
-        GitFit.dev - Fitness Break Reminder
-        =====================================
-
-        EASY INSTALLATION:
-        1. Double-click "Install_GitFit.command"
-        2. Follow the prompts
-        3. Done! The app will appear in your menu bar
-
-        The app runs in the MENU BAR only (top of screen)
-        EOF
+        # Create README
+        echo "GitFit.dev - Fitness Break Reminder" > dist/dmg/README.txt
+        echo "=====================================" >> dist/dmg/README.txt
+        echo "" >> dist/dmg/README.txt
+        echo "EASY INSTALLATION:" >> dist/dmg/README.txt
+        echo "1. Double-click Install_GitFit.command" >> dist/dmg/README.txt
+        echo "2. Follow the prompts" >> dist/dmg/README.txt
+        echo "3. Done! The app will appear in your menu bar" >> dist/dmg/README.txt
+        echo "" >> dist/dmg/README.txt
+        echo "The app runs in the MENU BAR only (top of screen)" >> dist/dmg/README.txt
 
         hdiutil create -volname "GitFit.dev Installer" \
           -srcfolder "dist/dmg" \
