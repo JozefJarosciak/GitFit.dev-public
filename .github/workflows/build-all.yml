@@ -30,14 +30,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install pyinstaller pillow pystray
 
-    - name: Generate icons
+    - name: Check assets
       run: |
-        python packaging/gen_icons.py || echo "Icon generation failed, continuing..."
-      continue-on-error: true
+        echo "Available assets:"
+        ls -la assets/ || echo "No assets directory found"
 
     - name: Build with PyInstaller
       run: |
-        python -m PyInstaller --name="GitFitDev" --windowed --onefile --icon="assets\icon_win.ico" --add-data "gitfitdev\lang_en.py;gitfitdev" --add-data "gitfitdev\lang_sk.py;gitfitdev" --hidden-import="gitfitdev.lang_en" --hidden-import="gitfitdev.lang_sk" --hidden-import="pystray._win32" packaging\gitfit_entry.py
+        python -m PyInstaller --name="GitFitDev" --windowed --onefile --icon="assets\icon_win.ico" --add-data "gitfitdev\lang_en.py;gitfitdev" --add-data "gitfitdev\lang_sk.py;gitfitdev" --hidden-import="gitfitdev.lang_en" --hidden-import="gitfitdev.lang_sk" --hidden-import="pystray._win32" entry.py
 
     - name: Download Inno Setup
       run: |
@@ -83,9 +83,10 @@ jobs:
         pip install --force-reinstall --no-binary :all: pillow
         pip install pyinstaller pystray pyobjc-framework-Cocoa
 
-    - name: Create icon
+    - name: Check assets
       run: |
-        python packaging/create_mac_icon.py || true
+        echo "Available assets:"
+        ls -la assets/ || echo "No assets directory found"
 
     - name: Clean ALL caches
       run: |
@@ -95,14 +96,14 @@ jobs:
         rm -rf /tmp/pyinstaller*
         echo "All caches cleaned"
 
-    - name: Use NEW entry point file
+    - name: Use entry point file
       run: |
-        echo "=== Using NEW gitfit_entry.py to bypass cache ==="
-        echo "Content of gitfit_entry.py:"
-        cat packaging/gitfit_entry.py
+        echo "=== Using entry.py ==="
+        echo "Content of entry.py:"
+        cat entry.py
         echo ""
         echo "Verifying it uses gitfitdev:"
-        grep "from gitfitdev" packaging/gitfit_entry.py
+        grep "from gitfitdev" entry.py
 
     - name: Build app with PyInstaller
       run: |
@@ -126,7 +127,7 @@ jobs:
           --hidden-import="gitfitdev.lang_en" \
           --hidden-import="gitfitdev.lang_sk" \
           --hidden-import="pystray._darwin" \
-          packaging/gitfit_entry.py
+          entry.py
 
         # Fix Info.plist
         /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "dist/GitFit.dev.app/Contents/Info.plist" 2>/dev/null || \
@@ -153,8 +154,14 @@ jobs:
         mkdir -p dist/dmg
         cp -R "dist/GitFit.dev.app" "dist/dmg/"
 
-        # Copy the installer script
-        cp "packaging/Install_GitFit.command" "dist/dmg/"
+        # Create a simple installer note
+        cat > "dist/dmg/Install_GitFit.command" << 'EOF'
+#!/bin/bash
+echo "To install GitFit.dev:"
+echo "1. Drag GitFit.dev.app to your Applications folder"
+echo "2. Launch it from Applications"
+echo "3. Look for the icon in your menu bar!"
+EOF
         chmod +x "dist/dmg/Install_GitFit.command"
 
         cat > dist/dmg/README.txt << EOF
