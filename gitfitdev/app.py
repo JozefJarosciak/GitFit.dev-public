@@ -2698,6 +2698,23 @@ class MoveReminderApp:
                 else:
                     return get_translation("status_active", self.settings.language)
 
+            # Build help submenu items, filtering out None values
+            help_items = [
+                # Show update available option if update exists
+                pystray.MenuItem(
+                    lambda text: f"📥 Download v{self._update_info.get('version', '')} (Update Available!)" if self._update_info else get_translation("tray_check_updates", self.settings.language),
+                    lambda: self._call_in_tk(self._download_update) if self._update_info else self._call_in_tk(self.check_for_updates)
+                ),
+                pystray.MenuItem(get_translation("tray_about", self.settings.language), lambda: self._call_in_tk(self.show_about_dialog)),
+                pystray.MenuItem(get_translation("tray_github", self.settings.language), lambda: self._call_in_tk(self.open_github)),
+            ]
+
+            # Add separator and check for updates if no update info
+            if self._update_info:
+                help_items.insert(1, pystray.Menu.SEPARATOR)
+            else:
+                help_items.append(pystray.MenuItem(get_translation("tray_check_updates", self.settings.language), lambda: self._call_in_tk(self.check_for_updates)))
+
             menu = pystray.Menu(
                 pystray.MenuItem(get_status_text, None, enabled=False),
                 pystray.Menu.SEPARATOR,
@@ -2725,17 +2742,7 @@ class MoveReminderApp:
                 # Help submenu with update notification
                 pystray.MenuItem(
                     lambda text: f"🔄 {get_translation('tray_help', self.settings.language)}" if self._update_info else get_translation("tray_help", self.settings.language),
-                    pystray.Menu(
-                        # Show update available option if update exists
-                        pystray.MenuItem(
-                            lambda text: f"📥 Download v{self._update_info.get('version', '')} (Update Available!)" if self._update_info else get_translation("tray_check_updates", self.settings.language),
-                            lambda: self._call_in_tk(self._download_update) if self._update_info else self._call_in_tk(self.check_for_updates)
-                        ),
-                        pystray.Menu.SEPARATOR if self._update_info else None,
-                        pystray.MenuItem(get_translation("tray_about", self.settings.language), lambda: self._call_in_tk(self.show_about_dialog)),
-                        pystray.MenuItem(get_translation("tray_github", self.settings.language), lambda: self._call_in_tk(self.open_github)),
-                        pystray.MenuItem(get_translation("tray_check_updates", self.settings.language), lambda: self._call_in_tk(self.check_for_updates)) if not self._update_info else None,
-                    )
+                    pystray.Menu(*help_items)
                 ),
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem(get_translation("tray_quit", self.settings.language), self._quit),
