@@ -44,41 +44,26 @@ jobs:
         BUILD_DATE = '$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")'
         "@ | Out-File -FilePath "version_info.py"
 
-    - name: Generate Windows icon
-      run: |
-        python packaging/gen_icons.py
-      continue-on-error: true
-
     - name: Build executable with PyInstaller
       run: |
-        python -m PyInstaller --clean --noconfirm --name="GitFitDev" --windowed --onefile --icon="assets\icon_win.ico" --add-data "gitfitdev\lang_en.py;gitfitdev" --add-data "gitfitdev\lang_sk.py;gitfitdev" --hidden-import="gitfitdev.lang_en" --hidden-import="gitfitdev.lang_sk" --hidden-import="pystray._win32" --hidden-import="PIL._tkinter_finder" packaging\gitfit_entry.py
+        python -m PyInstaller --clean --noconfirm --name="GitFitDev" --windowed --onefile --icon="assets\icon_win.ico" --add-data "gitfitdev\lang_en.py;gitfitdev" --add-data "gitfitdev\lang_sk.py;gitfitdev" --hidden-import="gitfitdev.lang_en" --hidden-import="gitfitdev.lang_sk" --hidden-import="pystray._win32" --hidden-import="PIL._tkinter_finder" entry.py
 
     - name: Test executable runs
       run: |
         if (Test-Path "dist\GitFitDev.exe") { Write-Host "✓ Executable built successfully"; $size = (Get-Item "dist\GitFitDev.exe").Length / 1MB; Write-Host "✓ Size: $([math]::Round($size, 2)) MB" } else { Write-Error "Executable not found!"; exit 1 }
 
-    - name: Download and install Inno Setup
+    - name: Create ZIP package
       run: |
-        Write-Host "Downloading Inno Setup..."
-        Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile "innosetup.exe"
-        Write-Host "Installing Inno Setup..."
-        Start-Process -FilePath ".\innosetup.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/SP-" -Wait -NoNewWindow
-        Write-Host "✓ Inno Setup installed"
-
-    - name: Build installer with Inno Setup
-      run: |
-        Write-Host "Building installer..."
-        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q installer\gitfit_installer.iss
-        if ($LASTEXITCODE -ne 0) {
-          Write-Error "Installer build failed!"
-          exit 1
-        }
-        Write-Host "✓ Installer built successfully"
+        Write-Host "Creating ZIP package..."
+        $version = "1.0.0"
+        $build = Get-Date -Format "yyyyMMdd.HHmm"
+        Compress-Archive -Path "dist\GitFitDev.exe" -DestinationPath "dist\GitFitDev-v$version-$build-Windows.zip"
+        Write-Host "✓ ZIP package created successfully"
 
     - name: Display build info
       run: |
         Write-Host "Build artifacts:"
-        Get-ChildItem dist\*.exe | ForEach-Object {
+        Get-ChildItem dist\* | ForEach-Object {
           $size = [math]::Round($_.Length / 1MB, 2)
           Write-Host " - $($_.Name): $size MB"
         }
@@ -90,17 +75,19 @@ jobs:
         path: dist\GitFitDev.exe
         retention-days: 30
 
-    - name: Upload installer
+    - name: Upload ZIP package
       uses: actions/upload-artifact@v4
       with:
-        name: GitFitDev-${{ github.sha }}-installer
-        path: dist\GitFitDev-*-Setup.exe
+        name: GitFitDev-${{ github.sha }}-zip
+        path: dist\GitFitDev-*.zip
         retention-days: 30
 
-    - name: Create latest release (on master only)
-      if: github.ref == 'refs/heads/master'
+    - name: Create latest release (on main branch)
+      if: github.ref == 'refs/heads/main'
       uses: actions/upload-artifact@v4
       with:
-        name: GitFitDev-latest-installer
-        path: dist\GitFitDev-*-Setup.exe
+        name: GitFitDev-latest-windows
+        path: |
+          dist\GitFitDev.exe
+          dist\GitFitDev-*.zip
         retention-days: 7
