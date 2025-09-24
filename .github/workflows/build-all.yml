@@ -1,0 +1,207 @@
+name: Build All Platforms
+
+on:
+  push:
+    branches: [ master, main ]
+    paths-ignore:
+      - 'website/**'
+      - '*.md'
+      - 'docs/**'
+  workflow_dispatch:
+  release:
+    types: [created]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[website-only]')"
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller pillow pystray
+
+    - name: Generate icons
+      run: |
+        python packaging/gen_icons.py || echo "Icon generation failed, continuing..."
+      continue-on-error: true
+
+    - name: Build with PyInstaller
+      run: |
+        python -m PyInstaller --name="GitFitDev" --windowed --onefile --icon="assets\icon_win.ico" --add-data "gitfitdev\lang_en.py;gitfitdev" --add-data "gitfitdev\lang_sk.py;gitfitdev" --hidden-import="gitfitdev.lang_en" --hidden-import="gitfitdev.lang_sk" --hidden-import="pystray._win32" packaging\gitfit_entry.py
+
+    - name: Download Inno Setup
+      run: |
+        Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile "innosetup.exe"
+
+    - name: Install Inno Setup
+      run: |
+        Start-Process -FilePath ".\innosetup.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/SP-" -Wait
+
+    - name: Build installer
+      run: |
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\gitfit_installer.iss
+
+    - name: Upload Windows EXE
+      uses: actions/upload-artifact@v4
+      with:
+        name: GitFitDev-Windows-Portable
+        path: dist\GitFitDev.exe
+
+    - name: Upload Windows Installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: GitFitDev-Windows-Setup
+        path: dist\GitFitDev-1.0.0-Setup.exe
+
+  build-macos:
+    runs-on: macos-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[website-only]')"
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # Force reinstall Pillow to ensure we get the right architecture
+        pip install --force-reinstall --no-binary :all: pillow
+        pip install pyinstaller pystray pyobjc-framework-Cocoa
+
+    - name: Create icon
+      run: |
+        python packaging/create_mac_icon.py || true
+
+    - name: Clean ALL caches
+      run: |
+        rm -rf build dist *.spec
+        rm -rf ~/.pyinstaller
+        rm -rf ~/Library/Caches/pyinstaller
+        rm -rf /tmp/pyinstaller*
+        echo "All caches cleaned"
+
+    - name: Use NEW entry point file
+      run: |
+        echo "=== Using NEW gitfit_entry.py to bypass cache ==="
+        echo "Content of gitfit_entry.py:"
+        cat packaging/gitfit_entry.py
+        echo ""
+        echo "Verifying it uses gitfitdev:"
+        grep "from gitfitdev" packaging/gitfit_entry.py
+
+    - name: Build app with PyInstaller
+      run: |
+        # Build for current architecture (ARM64 on GitHub runners)
+        echo "Building macOS app..."
+
+        pyinstaller --clean --noconfirm \
+          --name="GitFit.dev" \
+          --windowed \
+          --onedir \
+          --icon="assets/icon.icns" \
+          --osx-bundle-identifier="dev.gitfit.app" \
+          --paths="." \
+          --add-data "gitfitdev:gitfitdev" \
+          --collect-all="gitfitdev" \
+          --collect-all="pystray" \
+          --hidden-import="gitfitdev" \
+          --hidden-import="gitfitdev.app" \
+          --hidden-import="gitfitdev.config" \
+          --hidden-import="gitfitdev.themes" \
+          --hidden-import="gitfitdev.lang_en" \
+          --hidden-import="gitfitdev.lang_sk" \
+          --hidden-import="pystray._darwin" \
+          packaging/gitfit_entry.py
+
+        # Fix Info.plist
+        /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "dist/GitFit.dev.app/Contents/Info.plist" 2>/dev/null || \
+        /usr/libexec/PlistBuddy -c "Set :LSUIElement true" "dist/GitFit.dev.app/Contents/Info.plist"
+
+        # Ensure executable has correct permissions
+        chmod +x "dist/GitFit.dev.app/Contents/MacOS/GitFit.dev"
+
+        # Show architecture info
+        echo "Architecture info:"
+        file "dist/GitFit.dev.app/Contents/MacOS/GitFit.dev"
+
+        # List contents to verify
+        echo "App contents:"
+        ls -la "dist/GitFit.dev.app/Contents/MacOS/"
+        echo "Resources:"
+        ls -la "dist/GitFit.dev.app/Contents/Resources/" | head -10
+
+        # Remove quarantine attribute
+        xattr -cr "dist/GitFit.dev.app"
+
+    - name: Create DMG installer
+      run: |
+        mkdir -p dist/dmg
+        cp -R "dist/GitFit.dev.app" "dist/dmg/"
+
+        # Copy the installer script
+        cp "packaging/Install_GitFit.command" "dist/dmg/"
+        chmod +x "dist/dmg/Install_GitFit.command"
+
+        cat > dist/dmg/README.txt << EOF
+        GitFit.dev - Fitness Break Reminder
+        =====================================
+
+        EASY INSTALLATION:
+        1. Double-click "Install_GitFit.command"
+        2. Follow the prompts
+        3. Done! The app will appear in your menu bar
+
+        The app runs in the MENU BAR only (top of screen)
+        EOF
+
+        hdiutil create -volname "GitFit.dev Installer" \
+          -srcfolder "dist/dmg" \
+          -ov -format UDZO \
+          "dist/GitFitDev-macOS.dmg"
+
+    - name: Upload macOS App
+      uses: actions/upload-artifact@v4
+      with:
+        name: GitFit.dev-macOS-App
+        path: dist/GitFit.dev.app
+
+    - name: Upload macOS DMG
+      uses: actions/upload-artifact@v4
+      with:
+        name: GitFitDev-macOS-Installer
+        path: dist/GitFitDev-macOS.dmg
+
+  create-release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+
+    - name: Display structure
+      run: ls -la
+
+    - name: Upload to Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          GitFitDev-Windows-Setup/GitFitDev-1.0.0-Setup.exe
+          GitFitDev-macOS-Installer/GitFitDev-macOS.dmg
+        fail_on_unmatched_files: false

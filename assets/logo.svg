@@ -1,0 +1,79 @@
+<svg viewBox="0 0 820 280" width="100%" height="auto" role="img" aria-labelledby="title desc"
+     xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+    <title id="title">GitFit.dev logo</title>
+    <desc id="desc">A slim typing bar above the GitFit.dev wordmark (one word) and the tagline “Get Fit, Devs!”.</desc>
+
+    <defs>
+        <style>
+            :root{
+            --ink:#e5e9f3; --muted:#8B95A6; --green:#4CAF50; --red:#FF6B6B; --cyan:#00D4FF;
+            --bg1:#0e1424; --bg2:#111a2c; --stroke:rgba(255,255,255,.10); --shadow:rgba(0,0,0,.35);
+            }
+            @media (prefers-color-scheme: light){
+            :root{
+            --ink:#2b3344; --muted:#6b7280; --bg1:#f2f4f8; --bg2:#e9eef7; --stroke:rgba(0,0,0,.12); --shadow:rgba(0,0,0,.18);
+            }
+            }
+            text{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+        </style>
+
+        <!-- soft shadow for the typing bar -->
+        <filter id="shadow" x="-20%" y="-50%" width="140%" height="200%">
+            <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="var(--shadow)"/>
+        </filter>
+
+        <!-- typing reveal -->
+        <clipPath id="typing-clip">
+            <rect id="reveal" x="0" y="-14" width="0" height="22">
+                <!-- Adjust 600 if you change the command length -->
+                <animate attributeName="width" values="0; 600; 600" dur="4s" keyTimes="0;.65;1" repeatCount="indefinite"/>
+            </rect>
+        </clipPath>
+
+        <linearGradient id="barbg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="var(--bg1)"/>
+            <stop offset="100%" stop-color="var(--bg2)"/>
+        </linearGradient>
+    </defs>
+
+    <!-- TOP: typing bar -->
+    <g transform="translate(110,12)" filter="url(#shadow)">
+        <rect x="0" y="0" width="600" height="60" rx="12" fill="url(#barbg)" stroke="var(--stroke)"/>
+        <rect x="0" y="0" width="600" height="18" rx="12" fill="rgba(255,255,255,0.03)"/>
+        <!-- traffic lights -->
+        <g transform="translate(14,11)">
+            <circle r="4" fill="#28c840"/><circle cx="12" r="4" fill="#febc2e"/><circle cx="24" r="4" fill="#ff5f57"/>
+        </g>
+        <!-- command line -->
+        <g transform="translate(22,38)">
+            <text x="0" y="0" font-size="18" fill="var(--green)">$</text>
+            <g transform="translate(16,0)" clip-path="url(#typing-clip)">
+                <text x="0" y="0" font-size="18" fill="var(--ink)">git commit -m "chore: take a break""</text>
+            </g>
+            <rect x="600" y="-14" width="12" height="20" rx="3" fill="var(--ink)">
+                <animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite"/>
+            </rect>
+        </g>
+    </g>
+
+    <!-- WORDMARK (extra spacing below bar) -->
+    <g transform="translate(90,150)" aria-label="GitFit.dev">
+        <!-- Git (green) -->
+        <text x="20" y="0" font-size="88" font-weight="800" fill="var(--green)">Git</text>
+        <!-- Fit (red) — positioned to immediately follow 'Git' (no gap) -->
+        <text x="170" y="0" font-size="88" font-weight="800" fill="var(--red)">Fit</text>
+        <!-- .dev (cyan) -->
+        <text x="310" y="0" font-size="88" font-weight="700" fill="var(--cyan)">.dev</text>
+
+        <!-- Tagline, pushed further down for breathing room -->
+        <text x="25" y="50" font-size="24" font-style="italic" fill="var(--muted)">Get Fit, Devs!</text>
+    </g>
+
+    <!-- a11y + reduced motion -->
+    <style>
+        @media (prefers-reduced-motion: reduce){
+        #reveal{ width:600px !important; }
+        animate{ display:none !important; }
+        }
+    </style>
+</svg>

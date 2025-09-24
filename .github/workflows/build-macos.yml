@@ -1,0 +1,165 @@
+name: Build macOS App
+
+on:
+  push:
+    branches: [ master, main ]
+    paths-ignore:
+      - 'website/**'
+      - '*.md'
+      - 'docs/**'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build:
+    runs-on: macos-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[website-only]')"
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # Force reinstall Pillow to ensure we get the right architecture
+        pip install --force-reinstall --no-binary :all: pillow
+        pip install pyinstaller pystray pyobjc-framework-Cocoa
+
+    - name: Create icon
+      run: |
+        python packaging/create_mac_icon.py
+
+    - name: Clean ALL caches
+      run: |
+        rm -rf build dist *.spec
+        rm -rf ~/.pyinstaller
+        rm -rf ~/Library/Caches/pyinstaller
+        rm -rf /tmp/pyinstaller*
+        echo "All caches cleaned"
+
+    - name: Use NEW entry point file
+      run: |
+        echo "=== Using NEW gitfit_entry.py to bypass cache ==="
+        echo "Content of gitfit_entry.py:"
+        cat packaging/gitfit_entry.py
+        echo ""
+        echo "Verifying it uses gitfitdev:"
+        grep "from gitfitdev" packaging/gitfit_entry.py
+
+    - name: Build app with PyInstaller
+      run: |
+        # Build for current architecture (ARM64 on GitHub runners)
+        echo "Building macOS app..."
+
+        # Build without universal2 since dependencies aren't universal
+        pyinstaller --clean --noconfirm \
+          --name="GitFit.dev" \
+          --windowed \
+          --onedir \
+          --icon="assets/icon.icns" \
+          --osx-bundle-identifier="dev.gitfit.app" \
+          --paths="." \
+          --add-data "gitfitdev:gitfitdev" \
+          --collect-all="gitfitdev" \
+          --collect-all="pystray" \
+          --hidden-import="gitfitdev" \
+          --hidden-import="gitfitdev.app" \
+          --hidden-import="gitfitdev.config" \
+          --hidden-import="gitfitdev.themes" \
+          --hidden-import="gitfitdev.lang_en" \
+          --hidden-import="gitfitdev.lang_sk" \
+          --hidden-import="pystray._darwin" \
+          packaging/gitfit_entry.py
+
+        # Fix Info.plist
+        /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "dist/GitFit.dev.app/Contents/Info.plist" 2>/dev/null || \
+        /usr/libexec/PlistBuddy -c "Set :LSUIElement true" "dist/GitFit.dev.app/Contents/Info.plist"
+
+        # Ensure executable has correct permissions
+        chmod +x "dist/GitFit.dev.app/Contents/MacOS/GitFit.dev"
+
+        # Show architecture info
+        echo "Architecture info:"
+        file "dist/GitFit.dev.app/Contents/MacOS/GitFit.dev"
+
+        # List contents to verify
+        echo "App contents:"
+        ls -la "dist/GitFit.dev.app/Contents/MacOS/"
+        echo "Resources:"
+        ls -la "dist/GitFit.dev.app/Contents/Resources/" | head -10
+
+        # Remove quarantine attribute
+        xattr -cr "dist/GitFit.dev.app"
+
+    - name: Verify built app doesn't have old references
+      run: |
+        echo "=== Checking built app for move_reminder references ==="
+        # Extract and check the bundled entry.py
+        if [ -f "dist/GitFit.dev.app/Contents/Resources/entry.py" ]; then
+          echo "Found bundled entry.py:"
+          grep -n "import main" "dist/GitFit.dev.app/Contents/Resources/entry.py" || true
+        fi
+        # Check the binary
+        strings "dist/GitFit.dev.app/Contents/MacOS/GitFit.dev" | grep -i "move_reminder" | head -5 || echo "No move_reminder found in binary (good!)"
+
+    - name: Create DMG installer
+      run: |
+        # Create DMG directory structure
+        mkdir -p dist/dmg
+        cp -R "dist/GitFit.dev.app" "dist/dmg/"
+
+        # Copy the installer script
+        cp "packaging/Install_GitFit.command" "dist/dmg/"
+        chmod +x "dist/dmg/Install_GitFit.command"
+
+        # Create a simple visual guide
+        cat > dist/dmg/README.txt << EOF
+        GitFit.dev - Fitness Break Reminder
+        =====================================
+
+        EASY INSTALLATION:
+        1. Double-click "Install_GitFit.command"
+        2. Follow the prompts
+        3. Done! The app will appear in your menu bar
+
+        MANUAL INSTALLATION:
+        1. Drag GitFit.dev.app to Applications folder
+        2. Run this in Terminal:
+           sudo xattr -cr /Applications/GitFit.dev.app
+        3. Open from Applications folder
+
+        The app runs in the MENU BAR only (top of screen)
+        It does NOT appear in the Dock
+        EOF
+
+        # Build DMG with custom background if possible
+        hdiutil create -volname "GitFit.dev Installer" \
+          -srcfolder "dist/dmg" \
+          -ov -format UDZO \
+          "dist/GitFitDev-macOS.dmg"
+
+    - name: Upload App Bundle
+      uses: actions/upload-artifact@v4
+      with:
+        name: GitFit.dev-macOS-App
+        path: dist/GitFit.dev.app
+
+    - name: Upload DMG Installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: GitFitDev-macOS-Installer
+        path: dist/GitFitDev-macOS.dmg
+
+    - name: Create Release (if tagged)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist/GitFitDev-macOS.dmg
+        draft: false
+        prerelease: false

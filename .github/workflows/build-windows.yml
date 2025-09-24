@@ -1,0 +1,106 @@
+name: Build Windows Installer
+
+on:
+  push:
+    branches: [ master, main ]
+    paths-ignore:
+      - 'website/**'
+      - '*.md'
+      - 'docs/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[website-only]')"
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Cache Python packages
+      uses: actions/cache@v4
+      with:
+        path: ~\AppData\Local\pip\Cache
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller pillow pystray pyperclip
+
+    - name: Create version info
+      run: |
+        $version = "1.0.0"
+        $build = Get-Date -Format "yyyyMMdd.HHmm"
+        @"
+        APP_VERSION = '$version'
+        BUILD_NUMBER = '$build'
+        BUILD_DATE = '$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")'
+        "@ | Out-File -FilePath "version_info.py"
+
+    - name: Generate Windows icon
+      run: |
+        python packaging/gen_icons.py
+      continue-on-error: true
+
+    - name: Build executable with PyInstaller
+      run: |
+        python -m PyInstaller --clean --noconfirm --name="GitFitDev" --windowed --onefile --icon="assets\icon_win.ico" --add-data "gitfitdev\lang_en.py;gitfitdev" --add-data "gitfitdev\lang_sk.py;gitfitdev" --hidden-import="gitfitdev.lang_en" --hidden-import="gitfitdev.lang_sk" --hidden-import="pystray._win32" --hidden-import="PIL._tkinter_finder" packaging\gitfit_entry.py
+
+    - name: Test executable runs
+      run: |
+        if (Test-Path "dist\GitFitDev.exe") { Write-Host "✓ Executable built successfully"; $size = (Get-Item "dist\GitFitDev.exe").Length / 1MB; Write-Host "✓ Size: $([math]::Round($size, 2)) MB" } else { Write-Error "Executable not found!"; exit 1 }
+
+    - name: Download and install Inno Setup
+      run: |
+        Write-Host "Downloading Inno Setup..."
+        Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile "innosetup.exe"
+        Write-Host "Installing Inno Setup..."
+        Start-Process -FilePath ".\innosetup.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/SP-" -Wait -NoNewWindow
+        Write-Host "✓ Inno Setup installed"
+
+    - name: Build installer with Inno Setup
+      run: |
+        Write-Host "Building installer..."
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q installer\gitfit_installer.iss
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "Installer build failed!"
+          exit 1
+        }
+        Write-Host "✓ Installer built successfully"
+
+    - name: Display build info
+      run: |
+        Write-Host "Build artifacts:"
+        Get-ChildItem dist\*.exe | ForEach-Object {
+          $size = [math]::Round($_.Length / 1MB, 2)
+          Write-Host " - $($_.Name): $size MB"
+        }
+
+    - name: Upload portable executable
+      uses: actions/upload-artifact@v4
+      with:
+        name: GitFitDev-${{ github.sha }}-portable
+        path: dist\GitFitDev.exe
+        retention-days: 30
+
+    - name: Upload installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: GitFitDev-${{ github.sha }}-installer
+        path: dist\GitFitDev-*-Setup.exe
+        retention-days: 30
+
+    - name: Create latest release (on master only)
+      if: github.ref == 'refs/heads/master'
+      uses: actions/upload-artifact@v4
+      with:
+        name: GitFitDev-latest-installer
+        path: dist\GitFitDev-*-Setup.exe
+        retention-days: 7
