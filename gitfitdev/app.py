@@ -2856,7 +2856,7 @@ class MoveReminderApp:
 
         github_link = tk.Label(
             link_frame,
-            text="github.com/JozefJarosciak/GitFit.dev",
+            text="github.com/JozefJarosciak/GitFit.dev-public",
             font=("Segoe UI", 10, "underline"),
             fg=theme.accent_secondary,
             bg=theme.background,
