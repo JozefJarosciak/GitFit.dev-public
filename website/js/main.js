@@ -52,11 +52,19 @@ class ThemeManager {
 // Download functionality
 class DownloadManager {
     constructor() {
+        console.log('DownloadManager initializing...');
         this.downloadButtons = {
             windows: document.getElementById('downloadWindows'),
             mac: document.getElementById('downloadMac'),
             linux: document.getElementById('downloadLinux')
         };
+
+        // Debug: Check if buttons were found
+        console.log('Download buttons found:', {
+            windows: !!this.downloadButtons.windows,
+            mac: !!this.downloadButtons.mac,
+            linux: !!this.downloadButtons.linux
+        });
 
         // GitHub release URLs - dynamically updated from API
         this.downloadUrls = {
@@ -167,7 +175,8 @@ class DownloadManager {
                 this.enableFallbackDownloads();
             }
         } catch (error) {
-            console.log('Could not check release availability:', error);
+            console.error('Could not check release availability:', error);
+            console.error('Error details:', error.message);
             this.enableFallbackDownloads();
         }
     }
