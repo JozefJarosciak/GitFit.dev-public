@@ -2112,21 +2112,35 @@ class SettingsWindow:
 
     def _toggle_pre_warning(self):
         """Enable/disable pre-warning seconds dropdown and flash mode based on checkbox."""
-        if self.pre_warning_var.get():
-            self.pre_warning_combo.configure(state="readonly")
-            self.flash_check.configure(state="normal")
-            self._toggle_flash_duration()  # Update flash duration state
-        else:
-            self.pre_warning_combo.configure(state="disabled")
-            self.flash_check.configure(state="disabled")
-            self.flash_duration_combo.configure(state="disabled")
+        try:
+            if self.pre_warning_var.get():
+                if hasattr(self, 'pre_warning_combo') and self.pre_warning_combo:
+                    self.pre_warning_combo.configure(state="readonly")
+                if hasattr(self, 'flash_check') and self.flash_check:
+                    self.flash_check.configure(state="normal")
+                self._toggle_flash_duration()  # Update flash duration state
+            else:
+                if hasattr(self, 'pre_warning_combo') and self.pre_warning_combo:
+                    self.pre_warning_combo.configure(state="disabled")
+                if hasattr(self, 'flash_check') and self.flash_check:
+                    self.flash_check.configure(state="disabled")
+                if hasattr(self, 'flash_duration_combo') and self.flash_duration_combo:
+                    self.flash_duration_combo.configure(state="disabled")
+        except Exception as e:
+            # Silently handle widget access issues
+            pass
 
     def _toggle_flash_duration(self):
         """Enable/disable flash duration based on flash mode checkbox."""
-        if self.pre_warning_var.get() and self.pre_warning_flash_var.get():
-            self.flash_duration_combo.configure(state="readonly")
-        else:
-            self.flash_duration_combo.configure(state="disabled")
+        try:
+            if hasattr(self, 'flash_duration_combo') and self.flash_duration_combo:
+                if self.pre_warning_var.get() and self.pre_warning_flash_var.get():
+                    self.flash_duration_combo.configure(state="readonly")
+                else:
+                    self.flash_duration_combo.configure(state="disabled")
+        except Exception as e:
+            # Silently handle widget access issues
+            pass
 
     def _preview_theme(self):
         """Show a quick preview of the selected theme."""
