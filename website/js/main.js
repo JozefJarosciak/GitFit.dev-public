@@ -103,53 +103,37 @@ class DownloadManager {
     async checkAvailability() {
         // Check if releases are available
         try {
-            console.log('Fetching latest release from GitHub API...');
             const response = await fetch('https://api.github.com/repos/JozefJarosciak/GitFit.dev-public/releases/latest');
-
             if (response.ok) {
                 const release = await response.json();
                 this.latestRelease = release;
-                console.log('Latest release found:', release.tag_name);
-                console.log('Available assets:', release.assets.map(a => a.name));
 
-                // Find available Windows versions - improved detection
+                // Find available Windows versions
                 const windowsAssets = release.assets.filter(asset => {
                     const name = asset.name.toLowerCase();
-                    return name.includes('windows') ||
-                           name.includes('win') ||
-                           name.endsWith('.exe') ||
-                           (name.includes('gitfitdev') && (name.includes('setup') || name.includes('portable') || name.includes('.zip')));
+                    return name.includes('windows') || name.includes('win') || name.includes('.exe');
                 });
 
-                console.log('Windows assets found:', windowsAssets.map(a => a.name));
-
-                // Categorize Windows downloads with better detection
+                // Categorize Windows downloads
                 this.windowsDownloads = {
-                    installer: windowsAssets.find(asset => {
-                        const name = asset.name.toLowerCase();
-                        return name.includes('setup') || name.includes('installer');
-                    }),
-                    portable: windowsAssets.find(asset => {
-                        const name = asset.name.toLowerCase();
-                        return name.includes('portable') && name.endsWith('.exe');
-                    }),
-                    zip: windowsAssets.find(asset => {
-                        const name = asset.name.toLowerCase();
-                        return name.endsWith('.zip') && (name.includes('windows') || name.includes('gitfitdev'));
-                    })
+                    installer: windowsAssets.find(asset =>
+                        asset.name.toLowerCase().includes('setup') ||
+                        asset.name.toLowerCase().includes('installer')
+                    ),
+                    portable: windowsAssets.find(asset =>
+                        asset.name.toLowerCase().includes('portable') ||
+                        (asset.name.toLowerCase().includes('.exe') &&
+                         !asset.name.toLowerCase().includes('setup') &&
+                         !asset.name.toLowerCase().includes('installer'))
+                    ),
+                    zip: windowsAssets.find(asset =>
+                        asset.name.toLowerCase().includes('.zip')
+                    )
                 };
-
-                console.log('Categorized downloads:', {
-                    installer: this.windowsDownloads.installer?.name,
-                    portable: this.windowsDownloads.portable?.name,
-                    zip: this.windowsDownloads.zip?.name
-                });
 
                 // Enable downloads based on available assets
                 if (windowsAssets.length > 0) {
                     this.enableWindowsDownload();
-                } else {
-                    console.log('No Windows assets found, keeping fallback behavior');
                 }
 
                 const macAssets = release.assets.filter(asset => {
@@ -170,24 +154,14 @@ class DownloadManager {
                     this.enableDownload('linux');
                 }
             }
-            } else {
-                console.log('Failed to fetch releases:', response.status, response.statusText);
-                this.enableFallbackDownloads();
-            }
         } catch (error) {
             console.error('Could not check release availability:', error);
             console.error('Error details:', error.message);
-            this.enableFallbackDownloads();
+            // Fallback to release page
+            this.enableDownload('windows');
+            this.enableDownload('mac');
+            this.enableDownload('linux');
         }
-    }
-
-    enableFallbackDownloads() {
-        console.log('Using fallback downloads - pointing to releases page');
-        // Fallback to release page if API fails
-        this.downloadUrls.windows = 'https://github.com/JozefJarosciak/GitFit.dev-public/releases/latest';
-        this.enableDownload('windows');
-        this.enableDownload('mac');
-        this.enableDownload('linux');
     }
 
     enableWindowsDownload() {
