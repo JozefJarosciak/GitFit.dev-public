@@ -24,8 +24,13 @@ GitFit.dev is a cross-platform desktop application designed specifically for dev
 ## 📸 Screenshots
 
 <div align="center">
-  <img src="assets/marketing.png" alt="GitFit.dev Break Reminder Screenshot" width="800" />
-  <p><i>GitFit.dev's fullscreen break reminder in action</i></p>
+  <img src="assets/marketing-new.png" alt="GitFit.dev Break Reminder Screenshot" width="800" />
+  <p><i>GitFit.dev's fullscreen break reminder with exercise suggestions</i></p>
+</div>
+
+<div align="center">
+  <img src="assets/office.png" alt="GitFit.dev Running in Dual Monitor Office Setup" width="800" />
+  <p><i>GitFit.dev wellness breaks displaying on dual monitors in a real office environment</i></p>
 </div>
 
 ## 🚀 Quick Start
