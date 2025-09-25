@@ -49,8 +49,6 @@ AllowNoIcons=yes
 LicenseFile=..\LICENSE.txt
 InfoBeforeFile=..\README.md
 WizardStyle=modern
-WizardImageFile=installer_side.bmp
-WizardSmallImageFile=installer_small.bmp
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
