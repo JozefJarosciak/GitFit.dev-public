@@ -44,68 +44,41 @@ jobs:
         BUILD_DATE = '$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")'
         "@ | Out-File -FilePath "version_info.py"
 
+    - name: Generate Windows icon
+      run: |
+        python packaging/gen_icons.py
+      continue-on-error: true
+
     - name: Build executable with PyInstaller
       run: |
-        python -m PyInstaller --clean --noconfirm --name="GitFitDev" --windowed --onefile --icon="assets\icon_win.ico" --add-data "gitfitdev\lang_en.py;gitfitdev" --add-data "gitfitdev\lang_sk.py;gitfitdev" --hidden-import="gitfitdev.lang_en" --hidden-import="gitfitdev.lang_sk" --hidden-import="pystray._win32" --hidden-import="PIL._tkinter_finder" entry.py
+        python -m PyInstaller --clean --noconfirm --name="GitFitDev" --windowed --onefile --icon="assets\icon_win.ico" --add-data "gitfitdev\lang_en.py;gitfitdev" --add-data "gitfitdev\lang_sk.py;gitfitdev" --hidden-import="gitfitdev.lang_en" --hidden-import="gitfitdev.lang_sk" --hidden-import="pystray._win32" --hidden-import="PIL._tkinter_finder" packaging\gitfit_entry.py
 
     - name: Test executable runs
       run: |
         if (Test-Path "dist\GitFitDev.exe") { Write-Host "✓ Executable built successfully"; $size = (Get-Item "dist\GitFitDev.exe").Length / 1MB; Write-Host "✓ Size: $([math]::Round($size, 2)) MB" } else { Write-Error "Executable not found!"; exit 1 }
 
-    - name: Create ZIP package
+    - name: Download and install Inno Setup
       run: |
-        Write-Host "Creating ZIP package..."
-        $version = "1.0.0"
-        $build = Get-Date -Format "yyyyMMdd.HHmm"
-        Compress-Archive -Path "dist\GitFitDev.exe" -DestinationPath "dist\GitFitDev-v$version-$build-Windows.zip"
-        Write-Host "✓ ZIP package created successfully"
-
-    - name: Check if Inno Setup is available
-      id: inno-check
-      run: |
-        $innoPath = Get-Command "iscc.exe" -ErrorAction SilentlyContinue
-        if ($innoPath) {
-          Write-Host "✓ Inno Setup found at: $($innoPath.Source)"
-          echo "available=true" >> $env:GITHUB_OUTPUT
-        } else {
-          Write-Host "⚠ Inno Setup not found - installer will be skipped"
-          echo "available=false" >> $env:GITHUB_OUTPUT
-        }
-
-    - name: Install Inno Setup
-      if: steps.inno-check.outputs.available == 'false'
-      run: |
+        Write-Host "Downloading Inno Setup..."
+        Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile "innosetup.exe"
         Write-Host "Installing Inno Setup..."
-        $url = "https://files.jrsoftware.org/is/6/innosetup-6.2.2.exe"
-        $output = "$env:TEMP\innosetup.exe"
-        Invoke-WebRequest -Uri $url -OutFile $output
-        Start-Process -FilePath $output -ArgumentList "/SILENT" -Wait
-        # Add to PATH for current session
-        $env:PATH += ";${env:ProgramFiles(x86)}\Inno Setup 6"
-        echo "${env:ProgramFiles(x86)}\Inno Setup 6" >> $env:GITHUB_PATH
+        Start-Process -FilePath ".\innosetup.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/SP-" -Wait -NoNewWindow
+        Write-Host "✓ Inno Setup installed"
 
-    - name: Create Inno Setup installer
+    - name: Build installer with Inno Setup
       run: |
-        Write-Host "Creating Inno Setup installer..."
-        $isccPath = Get-Command "iscc.exe" -ErrorAction SilentlyContinue
-        if (-not $isccPath) {
-          $isccPath = "${env:ProgramFiles(x86)}\Inno Setup 6\iscc.exe"
+        Write-Host "Building installer..."
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q installer\gitfit_installer.iss
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "Installer build failed!"
+          exit 1
         }
-        if (Test-Path $isccPath) {
-          & $isccPath "installer\gitfit_installer.iss"
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "✓ Installer created successfully"
-          } else {
-            Write-Host "⚠ Installer creation failed (exit code: $LASTEXITCODE)" -ForegroundColor Yellow
-          }
-        } else {
-          Write-Host "⚠ Inno Setup compiler not found - installer skipped" -ForegroundColor Yellow
-        }
+        Write-Host "✓ Installer built successfully"
 
     - name: Display build info
       run: |
         Write-Host "Build artifacts:"
-        Get-ChildItem dist\* | ForEach-Object {
+        Get-ChildItem dist\*.exe | ForEach-Object {
           $size = [math]::Round($_.Length / 1MB, 2)
           Write-Host " - $($_.Name): $size MB"
         }
@@ -117,28 +90,17 @@ jobs:
         path: dist\GitFitDev.exe
         retention-days: 30
 
-    - name: Upload ZIP package
-      uses: actions/upload-artifact@v4
-      with:
-        name: GitFitDev-${{ github.sha }}-zip
-        path: dist\GitFitDev-*.zip
-        retention-days: 30
-
     - name: Upload installer
       uses: actions/upload-artifact@v4
-      if: always()  # Upload even if installer creation failed
       with:
         name: GitFitDev-${{ github.sha }}-installer
         path: dist\GitFitDev-*-Setup.exe
         retention-days: 30
 
-    - name: Create latest release (on main branch)
-      if: github.ref == 'refs/heads/main'
+    - name: Create latest release (on master only)
+      if: github.ref == 'refs/heads/master'
       uses: actions/upload-artifact@v4
       with:
-        name: GitFitDev-latest-windows
-        path: |
-          dist\GitFitDev.exe
-          dist\GitFitDev-*.zip
-          dist\GitFitDev-*-Setup.exe
+        name: GitFitDev-latest-installer
+        path: dist\GitFitDev-*-Setup.exe
         retention-days: 7

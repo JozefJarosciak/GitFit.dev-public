@@ -2608,8 +2608,6 @@ class MoveReminderApp:
             # Help submenu
             pystray.MenuItem(get_translation("tray_help", self.settings.language), pystray.Menu(
                 pystray.MenuItem(get_translation("tray_about", self.settings.language), lambda: self._call_in_tk(self.show_about_dialog)),
-                pystray.MenuItem(get_translation("tray_github", self.settings.language), lambda: self._call_in_tk(self.open_github)),
-                pystray.MenuItem(get_translation("tray_check_updates", self.settings.language), lambda: self._call_in_tk(self.check_for_updates)),
             )),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(get_translation("tray_quit", self.settings.language), self._quit),
@@ -2618,12 +2616,16 @@ class MoveReminderApp:
         import platform
 
         def on_clicked(icon, item):
-            """Handle clicks - on macOS, left-click opens menu"""
+            """Handle clicks - platform-specific behavior"""
             if platform.system() == 'Darwin':  # macOS
                 # On macOS, clicking the icon should open settings
                 if str(item) == "Open Settings" or item is None:
                     self._call_in_tk(self.open_settings)
-            else:  # Windows/Linux
+            elif platform.system() == 'Linux':  # Linux
+                # On Linux, left-click opens settings, right-click shows menu
+                if str(item) == APP_NAME or item is None:
+                    self._call_in_tk(self.open_settings)
+            else:  # Windows
                 # On Windows, left-click opens settings, right-click shows menu
                 if str(item) == APP_NAME or item is None:
                     self._call_in_tk(self.open_settings)
@@ -2631,7 +2633,14 @@ class MoveReminderApp:
         # Create icon with platform-appropriate behavior
         if platform.system() == 'Darwin':
             # macOS: menu bar icon, menu opens on left-click
-            # Note: 'default' parameter might cause issues, using simpler approach
+            self._tray = pystray.Icon(
+                APP_NAME,
+                image,
+                f"{APP_NAME} - Stay active while coding!",
+                menu
+            )
+        elif platform.system() == 'Linux':
+            # Linux: system tray icon with proper GTK integration
             self._tray = pystray.Icon(
                 APP_NAME,
                 image,
@@ -2698,22 +2707,10 @@ class MoveReminderApp:
                 else:
                     return get_translation("status_active", self.settings.language)
 
-            # Build help submenu items, filtering out None values
+            # Build help submenu items, only About option
             help_items = [
-                # Show update available option if update exists
-                pystray.MenuItem(
-                    lambda text: f"📥 Download v{self._update_info.get('version', '')} (Update Available!)" if self._update_info else get_translation("tray_check_updates", self.settings.language),
-                    lambda: self._call_in_tk(self._download_update) if self._update_info else self._call_in_tk(self.check_for_updates)
-                ),
                 pystray.MenuItem(get_translation("tray_about", self.settings.language), lambda: self._call_in_tk(self.show_about_dialog)),
-                pystray.MenuItem(get_translation("tray_github", self.settings.language), lambda: self._call_in_tk(self.open_github)),
             ]
-
-            # Add separator and check for updates if no update info
-            if self._update_info:
-                help_items.insert(1, pystray.Menu.SEPARATOR)
-            else:
-                help_items.append(pystray.MenuItem(get_translation("tray_check_updates", self.settings.language), lambda: self._call_in_tk(self.check_for_updates)))
 
             menu = pystray.Menu(
                 pystray.MenuItem(get_status_text, None, enabled=False),
@@ -2739,9 +2736,9 @@ class MoveReminderApp:
                 pystray.MenuItem(get_translation("tray_daily_progress", self.settings.language), lambda: self._call_in_tk(self.open_body_map)),
                 pystray.MenuItem(get_translation("tray_open_settings", self.settings.language), lambda: self._call_in_tk(self.open_settings)),
                 pystray.Menu.SEPARATOR,
-                # Help submenu with update notification
+                # Help submenu
                 pystray.MenuItem(
-                    lambda text: f"🔄 {get_translation('tray_help', self.settings.language)}" if self._update_info else get_translation("tray_help", self.settings.language),
+                    get_translation("tray_help", self.settings.language),
                     pystray.Menu(*help_items)
                 ),
                 pystray.Menu.SEPARATOR,
@@ -2828,7 +2825,7 @@ class MoveReminderApp:
 
         about_window = tk.Toplevel(self.root)
         about_window.title(get_translation("about_title", self.settings.language))
-        about_window.geometry("450x380")
+        about_window.geometry("450x420")
         about_window.resizable(False, False)
 
         theme = get_theme(self.settings.theme)
@@ -2869,12 +2866,36 @@ class MoveReminderApp:
         )
         desc_label.pack(pady=20)
 
+        # Website link
+        website_frame = tk.Frame(about_window, bg=theme.background)
+        website_frame.pack(pady=5)
+
+        website_label = tk.Label(
+            website_frame,
+            text="Website:",
+            font=("Segoe UI", 10),
+            fg=theme.text_primary,
+            bg=theme.background
+        )
+        website_label.pack(side=tk.LEFT, padx=(0, 5))
+
+        website_link = tk.Label(
+            website_frame,
+            text="gitfit.dev",
+            font=("Segoe UI", 10, "underline"),
+            fg=theme.accent_secondary,
+            bg=theme.background,
+            cursor="hand2"
+        )
+        website_link.pack(side=tk.LEFT)
+        website_link.bind("<Button-1>", lambda e: webbrowser.open("https://gitfit.dev"))
+
         # GitHub link
-        link_frame = tk.Frame(about_window, bg=theme.background)
-        link_frame.pack(pady=10)
+        github_frame = tk.Frame(about_window, bg=theme.background)
+        github_frame.pack(pady=5)
 
         github_label = tk.Label(
-            link_frame,
+            github_frame,
             text=get_translation("github_repo", self.settings.language) + ":",
             font=("Segoe UI", 10),
             fg=theme.text_primary,
@@ -2883,8 +2904,8 @@ class MoveReminderApp:
         github_label.pack(side=tk.LEFT, padx=(0, 5))
 
         github_link = tk.Label(
-            link_frame,
-            text="github.com/JozefJarosciak/GitFit.dev-public",
+            github_frame,
+            text="GitHub",
             font=("Segoe UI", 10, "underline"),
             fg=theme.accent_secondary,
             bg=theme.background,
@@ -2896,7 +2917,7 @@ class MoveReminderApp:
         # Version check status
         self.version_status_label = tk.Label(
             about_window,
-            text=get_translation("checking_updates", self.settings.language) + "...",
+            text="",  # Empty initially, will be populated after version check
             font=("Segoe UI", 9),
             fg=theme.text_secondary,
             bg=theme.background
@@ -2906,7 +2927,7 @@ class MoveReminderApp:
         # Check for updates button
         check_btn = tk.Button(
             about_window,
-            text=get_translation("check_updates_button", self.settings.language),
+            text=get_translation("about_check_version", self.settings.language),
             command=lambda: self.check_version_async(self.version_status_label),
             bg=theme.accent,
             fg=theme.background,
@@ -2932,8 +2953,8 @@ class MoveReminderApp:
         # Center window
         about_window.update_idletasks()
         x = (about_window.winfo_screenwidth() // 2) - (450 // 2)
-        y = (about_window.winfo_screenheight() // 2) - (380 // 2)
-        about_window.geometry(f"450x380+{x}+{y}")
+        y = (about_window.winfo_screenheight() // 2) - (420 // 2)
+        about_window.geometry(f"450x420+{x}+{y}")
 
         # Auto-check version on open
         self.check_version_async(self.version_status_label)
@@ -2946,6 +2967,9 @@ class MoveReminderApp:
     def check_version_async(self, status_label):
         """Check for updates asynchronously"""
         import threading
+
+        # Show checking status immediately
+        status_label.config(text=get_translation("version_checking", self.settings.language))
 
         def check():
             try:
@@ -2986,12 +3010,12 @@ class MoveReminderApp:
                         self.root.after(0, update_label)
                     else:
                         def update_error():
-                            status_label.config(text=get_translation("version_check_error", self.settings.language))
+                            status_label.config(text=get_translation("update_check_failed", self.settings.language))
                         self.root.after(0, update_error)
 
             except Exception as e:
                 def update_error():
-                    status_label.config(text=get_translation("version_check_error", self.settings.language))
+                    status_label.config(text=get_translation("update_check_failed", self.settings.language))
                 self.root.after(0, update_error)
 
         thread = threading.Thread(target=check, daemon=True)

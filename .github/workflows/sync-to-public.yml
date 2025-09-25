@@ -1,0 +1,83 @@
+name: Sync to Public Repository
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'gitfitdev/**'
+      - 'assets/**'
+      - '.github/workflows/build-*.yml'
+      - '.github/workflows/release.yml'
+      - 'requirements.txt'
+  workflow_dispatch:
+
+jobs:
+  sync-to-public:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip sync]')"
+
+    steps:
+    - name: Checkout private repo
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup Git config
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+
+    - name: Clone public repo
+      run: |
+        git clone https://${{ secrets.PUBLIC_REPO_TOKEN }}@github.com/JozefJarosciak/GitFit.dev-public.git public-repo
+        cd public-repo
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+
+    - name: Sync selected files to public repo
+      run: |
+        # Remove old files from public repo (except README.md and LICENSE)
+        cd public-repo
+        find . -type f -not -path "./.git/*" -not -name "README.md" -not -name "LICENSE" -not -name ".gitignore" -delete
+        find . -type d -empty -not -path "./.git*" -delete
+
+        # Copy selected files from private repo
+        cd ..
+        cp -r gitfitdev/ public-repo/
+        cp -r assets/ public-repo/
+        cp -r .github/ public-repo/
+        cp requirements.txt public-repo/
+
+        # Clean up workflows to only keep build workflows
+        cd public-repo/.github/workflows
+        find . -type f -not -name "build-*.yml" -not -name "release.yml" -delete
+
+    - name: Check for changes and commit
+      run: |
+        cd public-repo
+        if [ -n "$(git status --porcelain)" ]; then
+          git add .
+
+          # Extract original commit message and add sync info
+          ORIGINAL_MSG="${{ github.event.head_commit.message }}"
+          COMMIT_MSG="$ORIGINAL_MSG
+
+          Synced from private repository
+          Source commit: ${{ github.sha }}"
+
+          git commit -m "$COMMIT_MSG"
+          git push origin main
+          echo "Changes synced to public repository"
+        else
+          echo "No changes to sync"
+        fi
+
+    - name: Create release if tagged
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        cd public-repo
+        TAG_NAME=${GITHUB_REF#refs/tags/}
+        git tag $TAG_NAME
+        git push origin $TAG_NAME
+        echo "Tag $TAG_NAME created in public repository"

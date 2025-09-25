@@ -30,6 +30,10 @@ jobs:
         pip install --force-reinstall --no-binary :all: pillow
         pip install pyinstaller pystray pyobjc-framework-Cocoa
 
+    - name: Create icon
+      run: |
+        python packaging/create_mac_icon.py
+
     - name: Clean ALL caches
       run: |
         rm -rf build dist *.spec
@@ -38,14 +42,14 @@ jobs:
         rm -rf /tmp/pyinstaller*
         echo "All caches cleaned"
 
-    - name: Verify entry point
+    - name: Use NEW entry point file
       run: |
-        echo "=== Using entry.py ==="
-        echo "Content of entry.py:"
-        cat entry.py
+        echo "=== Using NEW gitfit_entry.py to bypass cache ==="
+        echo "Content of gitfit_entry.py:"
+        cat packaging/gitfit_entry.py
         echo ""
         echo "Verifying it uses gitfitdev:"
-        grep "from gitfitdev" entry.py
+        grep "from gitfitdev" packaging/gitfit_entry.py
 
     - name: Build app with PyInstaller
       run: |
@@ -57,7 +61,7 @@ jobs:
           --name="GitFit.dev" \
           --windowed \
           --onedir \
-          --icon="assets/icon_256.png" \
+          --icon="assets/icon.icns" \
           --osx-bundle-identifier="dev.gitfit.app" \
           --paths="." \
           --add-data "gitfitdev:gitfitdev" \
@@ -70,7 +74,7 @@ jobs:
           --hidden-import="gitfitdev.lang_en" \
           --hidden-import="gitfitdev.lang_sk" \
           --hidden-import="pystray._darwin" \
-          entry.py
+          packaging/gitfit_entry.py
 
         # Fix Info.plist
         /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "dist/GitFit.dev.app/Contents/Info.plist" 2>/dev/null || \
