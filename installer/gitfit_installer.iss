@@ -2,7 +2,7 @@
 ; This creates a professional Windows installer for GitFit.dev
 
 #define MyAppName "GitFit.dev"
-#define MyAppVersion "1.0.5"
+#define MyAppVersion "1.0.6"
 #define MyAppPublisher "GitFit"
 #define MyAppURL "https://github.com/JozefJarosciak/GitFitBreaks"
 #define MyAppExeName "GitFitDev.exe"

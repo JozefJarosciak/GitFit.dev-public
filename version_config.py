@@ -4,7 +4,7 @@ This is the SINGLE source of truth for version information
 """
 
 # MAIN VERSION - UPDATE ONLY THIS LINE FOR NEW RELEASES
-VERSION = "1.0.5"
+VERSION = "1.0.6"
 
 # Auto-generated from main version (don't edit these)
 VERSION_TUPLE = tuple(map(int, VERSION.split('.')))
