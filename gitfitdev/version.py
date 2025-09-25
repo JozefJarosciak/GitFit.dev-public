@@ -13,7 +13,7 @@ try:
     __github_api_releases__ = BUILD_INFO["github_api_releases"]
 except ImportError:
     # Fallback values for installed versions
-    __version__ = "1.0.6"
+    __version__ = "1.0.7"
     __release_date__ = "2025-09-25"
     __author__ = "GitFit.dev Team"
     __github_repo__ = "https://github.com/JozefJarosciak/GitFit.dev-public"
