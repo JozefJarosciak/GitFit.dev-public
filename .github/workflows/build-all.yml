@@ -203,34 +203,23 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y python3-tk python3-dev libgtk-3-dev libayatana-appindicator3-dev gir1.2-ayatanaappindicator3-0.1
+        sudo apt-get install -y python3-tk python3-dev libgtk-3-dev libayatana-appindicator3-dev gir1.2-ayatanaappindicator3-0.1 python3-gi python3-gi-cairo gir1.2-gtk-3.0
 
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pyinstaller pillow pystray PyGObject
+        pip install pyinstaller pillow pystray
+        # Use system PyGObject instead of pip version
 
     - name: Build Linux executable
       run: |
         pyinstaller --clean --noconfirm \
           --name="GitFitDev" \
           --onefile \
-          --windowed \
-          --icon="assets/logo.svg" \
           --add-data "gitfitdev:gitfitdev" \
-          --collect-all="gitfitdev" \
-          --collect-all="pystray" \
-          --hidden-import="gitfitdev" \
-          --hidden-import="gitfitdev.app" \
-          --hidden-import="gitfitdev.config" \
-          --hidden-import="gitfitdev.themes" \
           --hidden-import="gitfitdev.lang_en" \
           --hidden-import="gitfitdev.lang_sk" \
           --hidden-import="pystray._gtk" \
-          --hidden-import="gi" \
-          --hidden-import="gi.repository" \
-          --hidden-import="gi.repository.Gtk" \
-          --hidden-import="gi.repository.GdkPixbuf" \
           entry.py
 
     - name: Create AppImage structure
