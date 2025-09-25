@@ -2539,6 +2539,376 @@ class MoveReminderApp:
     def _get_settings(self):
         return self.settings
 
+    def _setup_linux_appindicator(self, image, menu):
+        """Setup native AppIndicator3 for GNOME compatibility"""
+        print("[Linux] Attempting to use native AppIndicator3...")
+
+        try:
+            # Import AppIndicator3
+            import gi
+            gi.require_version('AppIndicator3', '0.1')
+            gi.require_version('Gtk', '3.0')
+            from gi.repository import AppIndicator3, Gtk, GLib
+
+            # Ensure we can create an indicator to test functionality
+            test_indicator = AppIndicator3.Indicator.new(
+                "test", "", AppIndicator3.IndicatorCategory.APPLICATION_STATUS
+            )
+            if test_indicator is None:
+                raise Exception("AppIndicator3 not functional")
+
+            print("[Linux] AppIndicator3 libraries loaded and tested successfully")
+
+            # Save icon to temporary file for AppIndicator
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+                image.save(tmp.name, 'PNG')
+                self._temp_icon_path = tmp.name
+
+            # Create AppIndicator
+            self._indicator = AppIndicator3.Indicator.new(
+                "gitfit-dev",
+                self._temp_icon_path,
+                AppIndicator3.IndicatorCategory.APPLICATION_STATUS
+            )
+
+            # Set status to active
+            self._indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
+            self._indicator.set_title("GitFit.dev")
+            self._indicator.set_label("GitFit.dev", "GitFit.dev")
+
+            # Convert pystray menu to GTK menu
+            gtk_menu = self._create_gtk_menu_from_pystray(menu)
+            self._indicator.set_menu(gtk_menu)
+
+            # Store reference to prevent garbage collection
+            self._gtk_menu = gtk_menu
+            self._tray = self._indicator  # Store as tray for consistency
+
+            # Create GNOME-compatible notification
+            try:
+                import subprocess
+                subprocess.run([
+                    'notify-send',
+                    'GitFit.dev Started',
+                    'Click the system tray icon to access menu.',
+                    '--icon=applications-utilities'
+                ], capture_output=True, timeout=5)
+            except:
+                pass
+
+            print("[Linux] Native AppIndicator3 setup completed successfully")
+            print("[Linux] • Click tray icon for menu")
+            print("[Linux] • Alternative: ./GitFitDev --show-settings")
+
+        except Exception as e:
+            print(f"[Linux] AppIndicator3 setup failed: {e}")
+            # Clean up temp file if created
+            if hasattr(self, '_temp_icon_path'):
+                try:
+                    import os
+                    os.unlink(self._temp_icon_path)
+                except:
+                    pass
+            raise
+
+    def _create_gtk_menu_from_pystray(self, pystray_menu):
+        """Convert a pystray menu to a GTK menu"""
+        try:
+            import gi
+            gi.require_version('Gtk', '3.0')
+            from gi.repository import Gtk
+
+            gtk_menu = Gtk.Menu()
+        except Exception as e:
+            print(f"[Linux] Failed to import GTK: {e}")
+            raise
+
+        for item in pystray_menu:
+            if hasattr(item, 'text'):
+                if item.text == pystray.Menu.SEPARATOR:
+                    # Add separator
+                    separator = Gtk.SeparatorMenuItem()
+                    gtk_menu.append(separator)
+                else:
+                    # Regular menu item
+                    menu_item = Gtk.MenuItem.new_with_label(item.text)
+
+                    # Handle submenu
+                    if hasattr(item, 'menu') and item.menu:
+                        submenu = self._create_gtk_menu_from_pystray(item.menu)
+                        menu_item.set_submenu(submenu)
+
+                    # Handle action
+                    if hasattr(item, 'action') and item.action:
+                        def create_callback(action):
+                            def callback(widget):
+                                try:
+                                    # Call the action with proper parameters
+                                    if callable(action):
+                                        action(self._indicator, item)
+                                except Exception as e:
+                                    print(f"[Linux] Menu action error: {e}")
+                            return callback
+
+                        menu_item.connect("activate", create_callback(item.action))
+
+                    # Handle checked state
+                    if hasattr(item, 'checked') and callable(item.checked):
+                        try:
+                            is_checked = item.checked(item)
+                            if is_checked is not None:
+                                # Convert to CheckMenuItem
+                                check_item = Gtk.CheckMenuItem.new_with_label(item.text)
+                                check_item.set_active(bool(is_checked))
+                                if hasattr(item, 'action') and item.action:
+                                    def create_check_callback(action):
+                                        def callback(widget):
+                                            try:
+                                                action(self._indicator, item)
+                                            except Exception as e:
+                                                print(f"[Linux] Check menu action error: {e}")
+                                        return callback
+                                    check_item.connect("toggled", create_check_callback(item.action))
+                                menu_item = check_item
+                        except:
+                            pass  # Use regular menu item if checked state fails
+
+                    gtk_menu.append(menu_item)
+
+        gtk_menu.show_all()
+        return gtk_menu
+
+    def _setup_linux_alternatives(self):
+        """Setup alternative access methods for Linux/GNOME"""
+        print("[Linux] Setting up alternative access methods...")
+
+        # Method 1: D-Bus service for external control
+        try:
+            self._setup_dbus_service()
+        except Exception as e:
+            print(f"[Linux] D-Bus service setup failed: {e}")
+
+        # Method 2: Create desktop entry with keyboard shortcuts
+        try:
+            self._create_linux_desktop_entries()
+        except Exception as e:
+            print(f"[Linux] Desktop entries creation failed: {e}")
+
+        # Method 3: Persistent notification with action buttons
+        try:
+            self._create_persistent_notification()
+        except Exception as e:
+            print(f"[Linux] Persistent notification failed: {e}")
+
+        # Method 4: File-based control system
+        try:
+            self._setup_file_control_system()
+        except Exception as e:
+            print(f"[Linux] File control system failed: {e}")
+
+        print("[Linux] Alternative access methods configured.")
+        print("[Linux] Available access methods:")
+        print("[Linux] • Super+G: Quick settings access")
+        print("[Linux] • Super+Shift+G: Toggle pause/resume")
+        print("[Linux] • ./GitFitDev --show-settings")
+        print("[Linux] • ./GitFitDev --toggle-pause")
+        print("[Linux] • touch ~/.gitfitdev/show_settings")
+
+    def _setup_dbus_service(self):
+        """Setup D-Bus service for external control"""
+        try:
+            import dbus
+            import dbus.service
+            from dbus.mainloop.glib import DBusGMainLoop
+
+            # This is complex to implement properly, skip for now
+            # Would need proper D-Bus service implementation
+            pass
+        except ImportError:
+            pass
+
+    def _create_linux_desktop_entries(self):
+        """Create desktop entries for keyboard shortcuts"""
+        import os
+
+        # Get executable path
+        exe_path = sys.executable if not self._is_frozen() else sys.argv[0]
+
+        # Main settings shortcut
+        settings_entry = f"""[Desktop Entry]
+Type=Application
+Name=GitFit.dev Settings
+Comment=Open GitFit.dev Settings
+Exec={exe_path} --show-settings
+Icon=applications-utilities
+NoDisplay=true
+StartupNotify=false
+Keywords=gitfit;settings;fitness;break;
+"""
+
+        # Pause toggle shortcut
+        pause_entry = f"""[Desktop Entry]
+Type=Application
+Name=GitFit.dev Toggle Pause
+Comment=Toggle GitFit.dev Pause/Resume
+Exec={exe_path} --toggle-pause
+Icon=applications-utilities
+NoDisplay=true
+StartupNotify=false
+Keywords=gitfit;pause;resume;fitness;break;
+"""
+
+        # Write desktop entries
+        desktop_dir = os.path.expanduser("~/.local/share/applications")
+        os.makedirs(desktop_dir, exist_ok=True)
+
+        with open(os.path.join(desktop_dir, "gitfit-settings.desktop"), 'w') as f:
+            f.write(settings_entry)
+
+        with open(os.path.join(desktop_dir, "gitfit-pause.desktop"), 'w') as f:
+            f.write(pause_entry)
+
+        # Try to setup custom keyboard shortcuts (GNOME)
+        try:
+            import subprocess
+
+            # Set custom keyboard shortcuts using gsettings
+            subprocess.run([
+                'gsettings', 'set', 'org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/gitfit-settings/',
+                'name', 'GitFit.dev Settings'
+            ], capture_output=True, timeout=5)
+
+            subprocess.run([
+                'gsettings', 'set', 'org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/gitfit-settings/',
+                'command', f'{exe_path} --show-settings'
+            ], capture_output=True, timeout=5)
+
+            subprocess.run([
+                'gsettings', 'set', 'org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/gitfit-settings/',
+                'binding', '<Super>g'
+            ], capture_output=True, timeout=5)
+
+            # Pause toggle shortcut
+            subprocess.run([
+                'gsettings', 'set', 'org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/gitfit-pause/',
+                'name', 'GitFit.dev Toggle Pause'
+            ], capture_output=True, timeout=5)
+
+            subprocess.run([
+                'gsettings', 'set', 'org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/gitfit-pause/',
+                'command', f'{exe_path} --toggle-pause'
+            ], capture_output=True, timeout=5)
+
+            subprocess.run([
+                'gsettings', 'set', 'org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/gitfit-pause/',
+                'binding', '<Super><Shift>g'
+            ], capture_output=True, timeout=5)
+
+            # Add to the list of custom keybindings
+            result = subprocess.run([
+                'gsettings', 'get', 'org.gnome.settings-daemon.plugins.media-keys', 'custom-keybindings'
+            ], capture_output=True, text=True, timeout=5)
+
+            if result.returncode == 0:
+                current_bindings = result.stdout.strip()
+                if 'gitfit-settings' not in current_bindings:
+                    # Parse current bindings and add ours
+                    if current_bindings in ['@as []', '[]']:
+                        new_bindings = "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/gitfit-settings/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/gitfit-pause/']"
+                    else:
+                        # Add to existing bindings
+                        current_bindings = current_bindings.strip("[]'")
+                        if current_bindings:
+                            new_bindings = f"['{current_bindings}', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/gitfit-settings/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/gitfit-pause/']"
+                        else:
+                            new_bindings = "['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/gitfit-settings/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/gitfit-pause/']"
+
+                    subprocess.run([
+                        'gsettings', 'set', 'org.gnome.settings-daemon.plugins.media-keys', 'custom-keybindings', new_bindings
+                    ], capture_output=True, timeout=5)
+
+            print("[Linux] GNOME keyboard shortcuts configured:")
+            print("[Linux] • Super+G: Open settings")
+            print("[Linux] • Super+Shift+G: Toggle pause")
+
+        except Exception as e:
+            print(f"[Linux] Keyboard shortcuts setup failed: {e}")
+
+    def _create_persistent_notification(self):
+        """Create a persistent notification with action buttons (if supported)"""
+        try:
+            import subprocess
+
+            # Send a notification with instructions
+            subprocess.run([
+                'notify-send',
+                '--urgency=low',
+                '--expire-time=10000',  # 10 seconds
+                'GitFit.dev',
+                'System tray may not be clickable in GNOME.\nUse Super+G for settings or run:\n./GitFitDev --show-settings',
+                '--icon=applications-utilities'
+            ], capture_output=True, timeout=5)
+
+        except Exception:
+            pass
+
+    def _setup_file_control_system(self):
+        """Setup file-based control system for external tools"""
+        control_dir = os.path.expanduser("~/.gitfitdev/control")
+        os.makedirs(control_dir, exist_ok=True)
+
+        # Create control files that external scripts can touch
+        control_files = {
+            'show_settings': 'Touch this file to open settings',
+            'toggle_pause': 'Touch this file to toggle pause/resume',
+            'trigger_break': 'Touch this file to trigger break now',
+            'quit': 'Touch this file to quit application'
+        }
+
+        for filename, description in control_files.items():
+            readme_path = os.path.join(control_dir, f"{filename}.txt")
+            with open(readme_path, 'w') as f:
+                f.write(f"{description}\n")
+                f.write(f"Usage: touch ~/.gitfitdev/control/{filename}\n")
+
+        # Start file monitoring
+        def check_control_files():
+            try:
+                for action in ['show_settings', 'toggle_pause', 'trigger_break', 'quit']:
+                    control_file = os.path.join(control_dir, action)
+                    if os.path.exists(control_file):
+                        os.remove(control_file)  # Remove trigger file
+
+                        # Execute action
+                        if action == 'show_settings':
+                            self._call_in_tk(self.open_settings)
+                        elif action == 'toggle_pause':
+                            self._call_in_tk(lambda: self._toggle_pause(None, None))
+                        elif action == 'trigger_break':
+                            self._call_in_tk(self.trigger_overlay)
+                        elif action == 'quit':
+                            self._call_in_tk(self._quit)
+
+                        print(f"[Linux] Control file action executed: {action}")
+
+                # Schedule next check
+                if self.root:
+                    self.root.after(2000, check_control_files)  # Check every 2 seconds
+
+            except Exception as e:
+                print(f"[Linux] Control file monitoring error: {e}")
+                # Retry in 5 seconds
+                if self.root:
+                    self.root.after(5000, check_control_files)
+
+        # Start monitoring
+        if self.root:
+            self.root.after(1000, check_control_files)
+
+        print(f"[Linux] File control system active in: {control_dir}")
+        print(f"[Linux] Example: touch ~/.gitfitdev/control/show_settings")
+
     def start(self):
         # Check disclaimer acceptance before starting any functionality
         if not self.settings.disclaimer_accepted:
@@ -2640,13 +3010,25 @@ class MoveReminderApp:
                 menu
             )
         elif platform.system() == 'Linux':
-            # Linux: system tray icon with proper GTK integration
-            self._tray = pystray.Icon(
-                APP_NAME,
-                image,
-                f"{APP_NAME} - Stay active while coding!",
-                menu
-            )
+            # Linux: GNOME has fundamental issues with clickable system tray
+            # Use a combination of approaches for maximum compatibility
+            print(f"[Linux] Setting up GNOME-compatible system access...")
+
+            # Try AppIndicator first, but don't rely on it being clickable
+            try:
+                self._setup_linux_appindicator(image, menu)
+                print(f"[Linux] AppIndicator created (may not be clickable in GNOME)")
+            except Exception as e:
+                print(f"[Linux] AppIndicator failed ({e}), using pystray fallback...")
+                self._tray = pystray.Icon(
+                    APP_NAME,
+                    image,
+                    f"{APP_NAME} - Stay active while coding!",
+                    menu
+                )
+
+            # Always setup alternative access methods regardless of tray success
+            self._setup_linux_alternatives()
         else:
             # Windows: system tray icon, menu on right-click
             self._tray = pystray.Icon(
@@ -2744,8 +3126,19 @@ class MoveReminderApp:
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem(get_translation("tray_quit", self.settings.language), self._quit),
             )
-            self._tray.menu = menu
-            self._tray.update_menu()
+            # Handle both pystray and AppIndicator menu updates
+            if hasattr(self._tray, 'menu'):
+                # pystray
+                self._tray.menu = menu
+                self._tray.update_menu()
+            elif hasattr(self._tray, 'set_menu'):
+                # AppIndicator - convert pystray menu to GTK
+                try:
+                    gtk_menu = self._create_gtk_menu_from_pystray(menu)
+                    self._tray.set_menu(gtk_menu)
+                    self._gtk_menu = gtk_menu  # Keep reference
+                except Exception as e:
+                    print(f"[Linux] Failed to update AppIndicator menu: {e}")
 
     def open_body_map(self):
         """Open the body map viewer window"""
@@ -2925,9 +3318,14 @@ class MoveReminderApp:
         self.version_status_label.pack(pady=10)
 
         # Check for updates button
+        try:
+            check_btn_text = get_translation("about_check_version", self.settings.language)
+        except Exception:
+            check_btn_text = "Check for Latest Version"
+
         check_btn = tk.Button(
             about_window,
-            text=get_translation("about_check_version", self.settings.language),
+            text=check_btn_text,
             command=lambda: self.check_version_async(self.version_status_label),
             bg=theme.accent,
             fg=theme.background,
@@ -2969,20 +3367,39 @@ class MoveReminderApp:
         import threading
 
         # Show checking status immediately
-        status_label.config(text=get_translation("version_checking", self.settings.language))
+        try:
+            checking_text = get_translation("version_checking", self.settings.language)
+        except Exception:
+            checking_text = "Checking for updates..."
+        status_label.config(text=checking_text)
 
         def check():
             try:
                 import urllib.request
                 import json
 
+                # Get current version safely
+                try:
+                    from .version import __version__ as current_version
+                except ImportError:
+                    # Fallback for installed versions
+                    current_version = "1.0.3"
+
+                # Get GitHub API URL safely
+                try:
+                    from .version import __github_api_releases__
+                    api_url = __github_api_releases__
+                except ImportError:
+                    # Fallback for installed versions
+                    api_url = "https://api.github.com/repos/JozefJarosciak/GitFit.dev-public/releases/latest"
+
                 # Get latest release from GitHub
-                with urllib.request.urlopen(__github_api_releases__, timeout=5) as response:
+                with urllib.request.urlopen(api_url, timeout=5) as response:
                     data = json.loads(response.read())
                     latest_version = data.get('tag_name', '').lstrip('v')
 
                     if latest_version:
-                        current = __version__.split('.')
+                        current = current_version.split('.')
                         latest = latest_version.split('.')
 
                         # Compare versions
@@ -2996,16 +3413,23 @@ class MoveReminderApp:
 
                         # Update label in main thread
                         def update_label():
-                            if is_newer:
-                                status_label.config(
-                                    text=get_translation("update_available", self.settings.language).format(version=latest_version),
-                                    fg=get_theme(self.settings.theme).accent
-                                )
-                            else:
-                                status_label.config(
-                                    text=get_translation("up_to_date", self.settings.language),
-                                    fg=get_theme(self.settings.theme).accent_secondary
-                                )
+                            try:
+                                if is_newer:
+                                    status_label.config(
+                                        text=get_translation("update_available", self.settings.language).format(version=latest_version),
+                                        fg=get_theme(self.settings.theme).accent
+                                    )
+                                else:
+                                    status_label.config(
+                                        text=get_translation("up_to_date", self.settings.language),
+                                        fg=get_theme(self.settings.theme).text_secondary
+                                    )
+                            except Exception:
+                                # Fallback text if translation fails
+                                if is_newer:
+                                    status_label.config(text=f"Update available: v{latest_version}")
+                                else:
+                                    status_label.config(text="You are running the latest version.")
 
                         self.root.after(0, update_label)
                     else:
@@ -3238,8 +3662,24 @@ class MoveReminderApp:
             pass
         if self._tray:
             try:
-                self._tray.stop()
+                # Handle both pystray and AppIndicator cleanup
+                if hasattr(self._tray, 'stop'):
+                    self._tray.stop()  # pystray
+                elif hasattr(self._tray, 'set_status'):
+                    # AppIndicator - set to passive
+                    import gi
+                    gi.require_version('AppIndicator3', '0.1')
+                    from gi.repository import AppIndicator3
+                    self._tray.set_status(AppIndicator3.IndicatorStatus.PASSIVE)
             except Exception:
+                pass
+
+        # Clean up temporary icon file if using AppIndicator
+        if hasattr(self, '_temp_icon_path'):
+            try:
+                import os
+                os.unlink(self._temp_icon_path)
+            except:
                 pass
 
         # Stop autosave timer
@@ -3626,9 +4066,13 @@ def ensure_single_instance():
 def main():
     # Check for command line arguments
     show_settings = False
+    toggle_pause = False
+
     if len(sys.argv) > 1:
         if "--show-settings" in sys.argv:
             show_settings = True
+        elif "--toggle-pause" in sys.argv:
+            toggle_pause = True
 
     # Check for single instance
     if not ensure_single_instance():
@@ -3640,6 +4084,33 @@ def main():
             language = settings.language
         except:
             language = "en"
+
+        # Handle commands for existing instance
+        if toggle_pause:
+            # Signal existing instance to toggle pause via file
+            try:
+                control_dir = os.path.expanduser("~/.gitfitdev/control")
+                os.makedirs(control_dir, exist_ok=True)
+                toggle_file = os.path.join(control_dir, "toggle_pause")
+                with open(toggle_file, 'w') as f:
+                    f.write("")
+                print("Toggle pause signal sent to existing instance.")
+                sys.exit(0)
+            except Exception as e:
+                print(f"Failed to signal existing instance: {e}")
+
+        if show_settings:
+            # Signal existing instance to show settings via file
+            try:
+                control_dir = os.path.expanduser("~/.gitfitdev/control")
+                os.makedirs(control_dir, exist_ok=True)
+                settings_file = os.path.join(control_dir, "show_settings")
+                with open(settings_file, 'w') as f:
+                    f.write("")
+                print("Show settings signal sent to existing instance.")
+                sys.exit(0)
+            except Exception as e:
+                print(f"Failed to signal existing instance: {e}")
 
         error_msg = get_translation("error_already_running", language)
         # Replace placeholder with app name
@@ -3664,7 +4135,7 @@ def main():
 
     app = MoveReminderApp()
 
-    # If --show-settings was passed, schedule settings window to open after startup
+    # Handle command line flags
     if show_settings:
         def open_settings_delayed():
             import time
@@ -3674,6 +4145,16 @@ def main():
 
         import threading
         threading.Thread(target=open_settings_delayed, daemon=True).start()
+
+    elif toggle_pause:
+        def toggle_pause_delayed():
+            import time
+            time.sleep(2)  # Wait for app to fully initialize
+            if app.root:
+                app.root.after(100, lambda: app._toggle_pause(None, None))
+
+        import threading
+        threading.Thread(target=toggle_pause_delayed, daemon=True).start()
 
     app.start()
 

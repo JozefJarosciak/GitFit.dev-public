@@ -62,7 +62,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: GitFitDev-Windows-Setup
-        path: dist\GitFitDev-1.0.3-Setup.exe
+        path: dist\GitFitDev-1.0.5-Setup.exe
 
   build-macos:
     runs-on: macos-latest
@@ -328,6 +328,6 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         files: |
-          GitFitDev-Windows-Setup/GitFitDev-1.0.3-Setup.exe
+          GitFitDev-Windows-Setup/GitFitDev-1.0.5-Setup.exe
           GitFitDev-macOS-Installer/GitFitDev-macOS.dmg
         fail_on_unmatched_files: false

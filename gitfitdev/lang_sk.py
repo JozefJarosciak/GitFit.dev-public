@@ -130,8 +130,6 @@ UI_TRANSLATIONS = {
     "tray_resume": "Obnoviť prestávky",
     "tray_help": "Pomoc",
     "tray_about": "O programe",
-    "tray_github": "GitHub repozitár",
-    "tray_check_updates": "Skontrolovať aktualizácie",
     "tray_quit": "Ukončiť",
 
     # Status Messages
@@ -336,9 +334,11 @@ UI_TRANSLATIONS = {
     "about_description": "Aplikácia na pripomínanie fitness prestávok pre vývojárov a kancelárskych pracovníkov.",
     "about_copyright": "© 2024 Jozef Jarosciak",
     "about_license": "Licencované pod MIT licenciou",
-    "about_github": "GitHub repozitár",
-    "about_check_updates": "Skontrolovať aktualizácie",
+    "github_repo": "GitHub repozitár",
+    "about_check_version": "Skontrolovať najnovšiu verziu",
     "about_close": "Zavrieť",
+    "up_to_date": "Používate najnovšiu verziu.",
+    "version_checking": "Kontrolujem aktualizácie...",
     "update_available": "Nová verzia {version} je dostupná!",
     "update_current": "Používate najnovšiu verziu.",
     "update_check_failed": "Nepodarilo sa skontrolovať aktualizácie.",

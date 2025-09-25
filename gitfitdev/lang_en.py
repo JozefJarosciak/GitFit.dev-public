@@ -124,8 +124,6 @@ UI_TRANSLATIONS = {
     "tray_resume": "Resume Breaks",
     "tray_help": "Help",
     "tray_about": "About",
-    "tray_github": "GitHub Repository",
-    "tray_check_updates": "Check for Updates",
     "tray_quit": "Quit",
 
     # Status Messages
@@ -330,9 +328,11 @@ UI_TRANSLATIONS = {
     "about_description": "A fitness break reminder app for developers and desk workers.",
     "about_copyright": "© 2024 Jozef Jarosciak",
     "about_license": "Licensed under MIT License",
-    "about_github": "GitHub Repository",
-    "about_check_updates": "Check for Updates",
+    "github_repo": "GitHub Repository",
+    "about_check_version": "Check for Latest Version",
     "about_close": "Close",
+    "up_to_date": "You are running the latest version.",
+    "version_checking": "Checking for updates...",
     "update_available": "New version {version} is available!",
     "update_current": "You're running the latest version.",
     "update_check_failed": "Failed to check for updates.",
