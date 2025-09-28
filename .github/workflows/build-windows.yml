@@ -75,6 +75,59 @@ jobs:
         }
         Write-Host "✓ Installer built successfully"
 
+    - name: Decode signing certificate
+      if: env.SIGN_CERTIFICATE_BASE64 != ''
+      env:
+        SIGN_CERTIFICATE_BASE64: ${{ secrets.SIGN_CERTIFICATE_BASE64 }}
+      run: |
+        Write-Host "Decoding signing certificate..."
+        $certBytes = [Convert]::FromBase64String($env:SIGN_CERTIFICATE_BASE64)
+        [IO.File]::WriteAllBytes("SigningCertificate.pfx", $certBytes)
+        Write-Host "✓ Certificate decoded"
+
+    - name: Sign installer
+      if: env.SIGN_CERTIFICATE_BASE64 != ''
+      env:
+        SIGN_CERTIFICATE_BASE64: ${{ secrets.SIGN_CERTIFICATE_BASE64 }}
+        SIGN_CERTIFICATE_PASSWORD: ${{ secrets.SIGN_CERTIFICATE_PASSWORD }}
+      run: |
+        Write-Host "Signing installer..."
+        $installer = Get-ChildItem "dist\GitFitDev-*-Setup.exe" | Select-Object -First 1
+        if (-not $installer) {
+          Write-Error "No installer found to sign!"
+          exit 1
+        }
+
+        # Find signtool
+        $signtool = "C:\Program Files (x86)\Windows Kits\10\bin\x64\signtool.exe"
+        if (-not (Test-Path $signtool)) {
+          $signtool = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
+        }
+        if (-not (Test-Path $signtool)) {
+          # Try to find any signtool
+          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -Filter "signtool.exe" -Recurse | Where-Object { $_.Directory.Name -eq "x64" } | Select-Object -First 1 -ExpandProperty FullName
+        }
+
+        if ($signtool -and (Test-Path $signtool)) {
+          Write-Host "Using signtool: $signtool"
+          if ($env:SIGN_CERTIFICATE_PASSWORD) {
+            & $signtool sign /f "SigningCertificate.pfx" /p $env:SIGN_CERTIFICATE_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $installer.FullName
+          } else {
+            & $signtool sign /f "SigningCertificate.pfx" /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $installer.FullName
+          }
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "✓ Installer signed successfully"
+            & $signtool verify /pa $installer.FullName
+          } else {
+            Write-Warning "Signing failed but continuing build"
+          }
+        } else {
+          Write-Warning "Signtool not found - installer will not be signed"
+        }
+
+        # Clean up certificate
+        Remove-Item -Force "SigningCertificate.pfx" -ErrorAction SilentlyContinue
+
     - name: Display build info
       run: |
         Write-Host "Build artifacts:"
