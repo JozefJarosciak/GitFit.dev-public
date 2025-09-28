@@ -2707,13 +2707,20 @@ class MoveReminderApp:
         except Exception as e:
             print(f"[Linux] File control system failed: {e}")
 
+        # Method 5: Optional mini control window
+        try:
+            self._create_linux_mini_control()
+        except Exception as e:
+            print(f"[Linux] Mini control window failed: {e}")
+
         print("[Linux] Alternative access methods configured.")
         print("[Linux] Available access methods:")
         print("[Linux] • Super+G: Quick settings access")
         print("[Linux] • Super+Shift+G: Toggle pause/resume")
         print("[Linux] • ./GitFitDev --show-settings")
         print("[Linux] • ./GitFitDev --toggle-pause")
-        print("[Linux] • touch ~/.gitfitdev/show_settings")
+        print("[Linux] • touch ~/.gitfitdev/control/show_settings")
+        print("[Linux] • Optional mini window: touch ~/.gitfitdev/show_mini_control")
 
     def _setup_dbus_service(self):
         """Setup D-Bus service for external control"""
@@ -2909,6 +2916,244 @@ Keywords=gitfit;pause;resume;fitness;break;
         print(f"[Linux] File control system active in: {control_dir}")
         print(f"[Linux] Example: touch ~/.gitfitdev/control/show_settings")
 
+    def _create_linux_mini_control(self):
+        """Create a control window for Linux - shown by default unless explicitly disabled"""
+        # Check if user explicitly disabled the control panel
+        disable_file = os.path.expanduser("~/.gitfitdev/disable_control_panel")
+        if os.path.exists(disable_file):
+            print("[Linux] Control panel disabled by user preference")
+            print("[Linux] To re-enable: rm ~/.gitfitdev/disable_control_panel")
+            return
+
+        try:
+            self._mini_window = tk.Toplevel(self.root)
+            self._mini_window.title("GitFit.dev Control Panel")
+            self._mini_window.geometry("200x260")
+            self._mini_window.resizable(False, False)
+
+            # Position in top-right corner but more visible
+            self._mini_window.geometry("+{}+{}".format(
+                self._mini_window.winfo_screenwidth() - 220, 40
+            ))
+
+            # Keep on top initially to ensure visibility
+            self._mini_window.attributes('-topmost', True)
+            self._mini_window.after(3000, lambda: self._mini_window.attributes('-topmost', False))
+
+            # Style the window
+            self._mini_window.configure(bg='#f0f0f0')
+
+            # Add a header label
+            header = tk.Label(self._mini_window, text="GitFit.dev Controls",
+                             font=("Arial", 14, "bold"), bg='#f0f0f0')
+            header.pack(pady=10)
+
+            # Create larger, more visible buttons with icons
+            btn_style = {'width': 18, 'height': 2, 'font': ("Arial", 11), 'bd': 1, 'relief': 'raised'}
+
+            settings_btn = tk.Button(self._mini_window, text="⚙️ Open Settings",
+                                    command=self.open_settings, **btn_style)
+            settings_btn.pack(pady=5)
+
+            pause_text = "⏸️ Pause Breaks" if not self.settings.paused else "▶️ Resume Breaks"
+            self._pause_btn = tk.Button(self._mini_window, text=pause_text,
+                                       command=lambda: self._toggle_pause(None, None), **btn_style)
+            self._pause_btn.pack(pady=5)
+
+            break_btn = tk.Button(self._mini_window, text="💪 Break Now",
+                                 command=self.trigger_overlay, **btn_style)
+            break_btn.pack(pady=5)
+
+            # Add a separator
+            separator = tk.Frame(self._mini_window, height=2, bg='#cccccc')
+            separator.pack(fill='x', pady=10, padx=20)
+
+            # Minimize button (hides to system tray if available)
+            minimize_btn = tk.Button(self._mini_window, text="Minimize",
+                                    command=self._mini_window.withdraw,
+                                    width=18, font=("Arial", 10))
+            minimize_btn.pack(pady=5)
+
+            # Add help text at bottom
+            help_text = "Disable this panel:\ntouch ~/.gitfitdev/disable_control_panel"
+            help_label = tk.Label(self._mini_window, text=help_text,
+                                 font=("Arial", 8), fg='#666666', bg='#f0f0f0')
+            help_label.pack(pady=10)
+
+            # Update pause button text periodically
+            def update_pause_button():
+                if hasattr(self, '_pause_btn') and self._pause_btn.winfo_exists():
+                    pause_text = "⏸️ Pause Breaks" if not self.settings.paused else "▶️ Resume Breaks"
+                    self._pause_btn.config(text=pause_text)
+                    self._mini_window.after(1000, update_pause_button)
+
+            self._mini_window.after(500, update_pause_button)
+
+            # Handle window close to minimize instead of destroy
+            self._mini_window.protocol("WM_DELETE_WINDOW", self._mini_window.withdraw)
+
+            # Add method to restore window when tray icon is clicked
+            if not hasattr(self, '_restore_control_panel'):
+                self._restore_control_panel = lambda: self._mini_window.deiconify() if hasattr(self, '_mini_window') else None
+
+            print("[Linux] Control panel window created (top-right corner)")
+            print("[Linux] The control panel provides easy access to all GitFit.dev features")
+            print("[Linux] To disable this panel: touch ~/.gitfitdev/disable_control_panel")
+            print("[Linux] To restore minimized panel: restart app or use system tray if available")
+
+        except Exception as e:
+            print(f"[Linux] Control panel window failed: {e}")
+
+    def _setup_macos_alternatives(self):
+        """Setup alternative access methods for macOS"""
+        print("[macOS] Setting up alternative access methods...")
+
+        # Method 1: AppleScript integration for native access
+        try:
+            self._setup_applescript_handlers()
+        except Exception as e:
+            print(f"[macOS] AppleScript handlers failed: {e}")
+
+        # Method 2: Dock icon and app menu enhancement
+        try:
+            self._setup_dock_integration()
+        except Exception as e:
+            print(f"[macOS] Dock integration failed: {e}")
+
+        # Method 3: Global keyboard shortcuts
+        try:
+            self._setup_macos_shortcuts()
+        except Exception as e:
+            print(f"[macOS] Keyboard shortcuts failed: {e}")
+
+        # Method 4: File-based control system (same as Linux)
+        try:
+            self._setup_file_control_system()
+        except Exception as e:
+            print(f"[macOS] File control system failed: {e}")
+
+        # Method 5: Native notifications with actions
+        try:
+            self._setup_macos_notifications()
+        except Exception as e:
+            print(f"[macOS] Native notifications failed: {e}")
+
+        print("[macOS] Alternative access methods configured.")
+        print("[macOS] Available access methods:")
+        print("[macOS] • Cmd+Option+G: Quick settings access")
+        print("[macOS] • Cmd+Option+Shift+G: Toggle pause/resume")
+        print("[macOS] • ./GitFitDev --show-settings")
+        print("[macOS] • ./GitFitDev --toggle-pause")
+        print("[macOS] • touch ~/.gitfitdev/control/show_settings")
+        print("[macOS] • Dock right-click menu (enhanced)")
+
+    def _setup_applescript_handlers(self):
+        """Setup AppleScript integration for native macOS access"""
+        try:
+            # Create AppleScript files for common actions
+            applescript_dir = os.path.expanduser("~/Library/Application Scripts/com.gitfit.breaks")
+            os.makedirs(applescript_dir, exist_ok=True)
+
+            # Settings script
+            settings_script = '''
+tell application "System Events"
+    set appPath to POSIX path of (path to application "GitFitDev")
+    do shell script quoted form of appPath & " --show-settings"
+end tell
+'''
+            with open(os.path.join(applescript_dir, "open_settings.scpt"), 'w') as f:
+                f.write(settings_script)
+
+            # Pause toggle script
+            pause_script = '''
+tell application "System Events"
+    set appPath to POSIX path of (path to application "GitFitDev")
+    do shell script quoted form of appPath & " --toggle-pause"
+end tell
+'''
+            with open(os.path.join(applescript_dir, "toggle_pause.scpt"), 'w') as f:
+                f.write(pause_script)
+
+            print("[macOS] AppleScript handlers created")
+
+        except Exception as e:
+            print(f"[macOS] AppleScript setup failed: {e}")
+
+    def _setup_dock_integration(self):
+        """Enhance dock icon with better menu and integration"""
+        try:
+            # This would require PyObjC to properly implement
+            # For now, just ensure the app appears properly in dock
+            import sys
+            if hasattr(sys, '_MEIPASS'):  # PyInstaller bundle
+                # Set app name and icon for dock
+                try:
+                    import Foundation
+                    bundle = Foundation.NSBundle.mainBundle()
+                    if bundle:
+                        info = bundle.localizedInfoDictionary() or bundle.infoDictionary()
+                        if info:
+                            info['CFBundleName'] = APP_NAME
+                except:
+                    pass
+
+            print("[macOS] Dock integration configured")
+
+        except Exception as e:
+            print(f"[macOS] Dock integration failed: {e}")
+
+    def _setup_macos_shortcuts(self):
+        """Setup global keyboard shortcuts for macOS"""
+        try:
+            # Create simple shell scripts that can be used with system shortcuts
+            scripts_dir = os.path.expanduser("~/.gitfitdev/scripts")
+            os.makedirs(scripts_dir, exist_ok=True)
+
+            # Get executable path
+            exe_path = sys.executable if not self._is_frozen() else sys.argv[0]
+
+            # Settings shortcut script
+            settings_script = f'''#!/bin/bash
+exec "{exe_path}" --show-settings
+'''
+            settings_path = os.path.join(scripts_dir, "open_settings.sh")
+            with open(settings_path, 'w') as f:
+                f.write(settings_script)
+            os.chmod(settings_path, 0o755)
+
+            # Pause toggle script
+            pause_script = f'''#!/bin/bash
+exec "{exe_path}" --toggle-pause
+'''
+            pause_path = os.path.join(scripts_dir, "toggle_pause.sh")
+            with open(pause_path, 'w') as f:
+                f.write(pause_script)
+            os.chmod(pause_path, 0o755)
+
+            print("[macOS] Shortcut scripts created at ~/.gitfitdev/scripts/")
+            print("[macOS] Configure in System Preferences > Keyboard > Shortcuts:")
+            print(f"[macOS]   Settings: {settings_path}")
+            print(f"[macOS]   Pause:    {pause_path}")
+
+        except Exception as e:
+            print(f"[macOS] Shortcut setup failed: {e}")
+
+    def _setup_macos_notifications(self):
+        """Setup macOS native notifications with action buttons"""
+        try:
+            import subprocess
+
+            # Send initial notification with instructions
+            subprocess.run([
+                'osascript', '-e',
+                f'display notification "Menu bar access: right-click icon\\nKeyboard: Cmd+Option+G for settings\\nCommand line: ./GitFitDev --show-settings" with title "GitFit.dev Started" subtitle "Multiple access methods available"'
+            ], capture_output=True, timeout=5)
+
+            print("[macOS] Welcome notification sent")
+
+        except Exception as e:
+            print(f"[macOS] Notification setup failed: {e}")
+
     def start(self):
         # Check disclaimer acceptance before starting any functionality
         if not self.settings.disclaimer_accepted:
@@ -2992,9 +3237,17 @@ Keywords=gitfit;pause;resume;fitness;break;
                 if str(item) == "Open Settings" or item is None:
                     self._call_in_tk(self.open_settings)
             elif platform.system() == 'Linux':  # Linux
-                # On Linux, left-click opens settings, right-click shows menu
+                # On Linux, left-click restores control panel (if minimized) or opens settings
                 if str(item) == APP_NAME or item is None:
-                    self._call_in_tk(self.open_settings)
+                    # Try to restore control panel first
+                    if hasattr(self, '_mini_window'):
+                        try:
+                            self._call_in_tk(lambda: self._mini_window.deiconify())
+                        except:
+                            # If control panel doesn't exist or failed, open settings
+                            self._call_in_tk(self.open_settings)
+                    else:
+                        self._call_in_tk(self.open_settings)
             else:  # Windows
                 # On Windows, left-click opens settings, right-click shows menu
                 if str(item) == APP_NAME or item is None:
@@ -3003,12 +3256,20 @@ Keywords=gitfit;pause;resume;fitness;break;
         # Create icon with platform-appropriate behavior
         if platform.system() == 'Darwin':
             # macOS: menu bar icon, menu opens on left-click
-            self._tray = pystray.Icon(
-                APP_NAME,
-                image,
-                f"{APP_NAME} - Stay active while coding!",
-                menu
-            )
+            try:
+                self._tray = pystray.Icon(
+                    APP_NAME,
+                    image,
+                    f"{APP_NAME} - Stay active while coding!",
+                    menu
+                )
+                print(f"[macOS] Menu bar icon created")
+            except Exception as e:
+                print(f"[macOS] Menu bar icon failed ({e}), using alternatives...")
+                self._tray = None
+
+            # Always setup alternative access methods regardless of tray success
+            self._setup_macos_alternatives()
         elif platform.system() == 'Linux':
             # Linux: GNOME has fundamental issues with clickable system tray
             # Use a combination of approaches for maximum compatibility
@@ -3047,8 +3308,11 @@ Keywords=gitfit;pause;resume;fitness;break;
         self._version_checker.check_for_updates_async()
 
         # Start tray in a thread; keep Tk mainloop on main thread
-        t = threading.Thread(target=self._tray.run, daemon=True)
-        t.start()
+        if self._tray:
+            t = threading.Thread(target=self._tray.run, daemon=True)
+            t.start()
+        else:
+            print(f"[{platform.system()}] Running without system tray - using alternative access methods")
 
         self.root.mainloop()
 

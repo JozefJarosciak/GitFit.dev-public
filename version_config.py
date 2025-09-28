@@ -4,12 +4,12 @@ This is the SINGLE source of truth for version information
 """
 
 # MAIN VERSION - UPDATE ONLY THIS LINE FOR NEW RELEASES
-VERSION = "1.0.7"
+VERSION = "1.0.0"
 
 # Auto-generated from main version (don't edit these)
 VERSION_TUPLE = tuple(map(int, VERSION.split('.')))
 VERSION_WITH_V = f"v{VERSION}"
-RELEASE_DATE = "2025-09-25"
+RELEASE_DATE = "2025-09-27"
 
 # Build information
 BUILD_INFO = {

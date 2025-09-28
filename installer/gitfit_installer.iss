@@ -2,7 +2,7 @@
 ; This creates a professional Windows installer for GitFit.dev
 
 #define MyAppName "GitFit.dev"
-#define MyAppVersion "1.0.7"
+#define MyAppVersion "1.0.0"
 #define MyAppPublisher "GitFit"
 #define MyAppURL "https://github.com/JozefJarosciak/GitFitBreaks"
 #define MyAppExeName "GitFitDev.exe"
@@ -28,7 +28,7 @@ DisableProgramGroupPage=yes
 OutputDir=..\dist
 OutputBaseFilename=GitFitDev-{#MyAppVersion}-Setup
 SetupIconFile=..\assets\icon_win.ico
-Compression=zip
+Compression=lzma
 SolidCompression=yes
 
 ; Windows version requirements
@@ -46,11 +46,6 @@ UninstallDisplayName={#MyAppName}
 
 ; Additional settings
 AllowNoIcons=yes
-LicenseFile=..\LICENSE.txt
-InfoBeforeFile=..\README.md
-WizardStyle=modern
-WizardImageFile=installer_side.bmp
-WizardSmallImageFile=installer_small.bmp
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

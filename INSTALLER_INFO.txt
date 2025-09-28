@@ -1,0 +1,38 @@
+GitFit.dev - Break Reminders That Actually Work for Developers
+
+What is GitFit.dev?
+
+GitFit.dev is a cross-platform desktop application designed specifically for developers who spend long hours coding. It displays fullscreen break reminders with fitness-themed messages at configurable intervals, helping you maintain your health and productivity.
+
+Key Features:
+
+• Fullscreen lock during breaks - Cannot be dismissed until timer expires
+• Smart scheduling - Sub-hourly intervals with precise timing (e.g., every 30 min at :00/:30)
+• Developer-friendly messages - Fitness reminders designed for coders
+• Cross-platform support - Windows, macOS, and Linux
+• System tray integration - Runs quietly in the background
+• Configurable intervals - Set your preferred break frequency
+• Active hours support - Only shows reminders during work hours
+• Lightweight and efficient - Minimal system resource usage
+
+How it works:
+
+1. Install and run GitFit.dev
+2. Configure your break intervals and active hours
+3. The app runs in your system tray (look for the green dumbbell icon)
+4. At scheduled times, it displays fullscreen break reminders
+5. Take your break - the reminder cannot be dismissed early
+6. Return to coding refreshed and healthier!
+
+INSTALLER TROUBLESHOOTING:
+
+If installer buttons don't work (Windows 11/high DPI):
+- Right-click installer → Properties → Compatibility
+- Check "Disable display scaling on high DPI settings"
+- Click Apply and run installer again
+
+POST-INSTALLATION:
+
+After installation, GitFit.dev will run in your system tray. Look for the green dumbbell icon near your clock to access settings and features.
+
+Right-click the tray icon for quick actions, or double-click to open Settings.
