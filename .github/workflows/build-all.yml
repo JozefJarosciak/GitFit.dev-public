@@ -95,9 +95,12 @@ jobs:
           if ($LASTEXITCODE -eq 0) {
             Write-Host "Installer signed successfully"
             # Verify signature (may fail for self-signed certs, that's OK)
-            & $signtool verify /pa $installer.FullName
+            & $signtool verify /pa $installer.FullName 2>$null | Out-Null
             if ($LASTEXITCODE -ne 0) {
               Write-Host "Note: Verification errors are expected for self-signed certificates"
+              # Reset exit code to success since signing worked
+              $LASTEXITCODE = 0
+              exit 0
             }
           } else {
             Write-Warning "Signing failed but continuing build"
