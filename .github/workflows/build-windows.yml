@@ -51,7 +51,7 @@ jobs:
 
     - name: Build executable with PyInstaller
       run: |
-        python -m PyInstaller --clean --noconfirm --name="GitFitDev" --windowed --onefile --icon="assets\icon_win.ico" --add-data "gitfitdev\lang_en.py;gitfitdev" --add-data "gitfitdev\lang_sk.py;gitfitdev" --hidden-import="gitfitdev.lang_en" --hidden-import="gitfitdev.lang_sk" --hidden-import="pystray._win32" --hidden-import="PIL._tkinter_finder" packaging\gitfit_entry.py
+        python -m PyInstaller --clean --noconfirm --name="GitFitDev" --windowed --onefile --icon="assets\icon_win.ico" --add-data "gitfitdev\lang_en.py;gitfitdev" --add-data "gitfitdev\lang_sk.py;gitfitdev" --hidden-import="gitfitdev.lang_en" --hidden-import="gitfitdev.lang_sk" --hidden-import="pystray._win32" --hidden-import="PIL._tkinter_finder" packaging\entry.py
 
     - name: Test executable runs
       run: |
