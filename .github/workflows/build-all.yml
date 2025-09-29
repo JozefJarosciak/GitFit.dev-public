@@ -376,6 +376,10 @@ jobs:
     needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
+    permissions:
+      contents: write
+      packages: write
+      actions: read
 
     steps:
     - name: Download all artifacts
@@ -387,7 +391,12 @@ jobs:
     - name: Upload to Release
       uses: softprops/action-gh-release@v2
       with:
+        token: ${{ secrets.GITHUB_TOKEN }}
         files: |
           GitFitDev-Windows-Setup/GitFitDev-1.0.0-Setup.exe
+          GitFitDev-Windows-Portable/GitFitDev.exe
           GitFitDev-macOS-Installer/GitFitDev-macOS.dmg
+          GitFit.dev-macOS-App/*
+          GitFitDev-Linux-Executable/GitFitDev
+          GitFitDev-Linux-Package/GitFitDev-Linux.tar.gz
         fail_on_unmatched_files: false
